@@ -4,7 +4,7 @@ import '../services/photo_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/photo_item.dart';
 import 'foto_create_screen.dart';
-import 'mis_fotos_screen.dart'; // Importamos la pantalla de Mis Fotos
+import 'fotos_usuario_screen.dart'; // Importamos la pantalla de Mis Fotos
 import 'perfil_screen.dart'; // Importamos la pantalla de Perfil
 
 class HomeScreen extends StatefulWidget {
@@ -59,31 +59,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Método para construir la pantalla correspondiente según el índice
-  Widget _buildPage(List<dynamic> photos) {
-    // photos es List<Fotografia> pero dynamic aqui facilita
+  Widget _buildPage() {
     switch (_selectedIndex) {
-      case 0: // Inicio (Explorar)
       case 0: // Inicio (Explorar)
         // Usamos un Navigator anidado para que al entrar en el detalle se mantenga el BottomBar
         return Navigator(
           key: _feedNavigatorKey,
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (context) => RefreshIndicator(
-                onRefresh: () => Provider.of<PhotoService>(
-                  context,
-                  listen: false,
-                ).fetchPhotos(),
-                child: ListView.builder(
-                  itemCount: photos.length,
-                  itemBuilder: (ctx, i) => PhotoItem(photo: photos[i]),
-                ),
-              ),
+              builder: (context) {
+                // Usamos Consumer para escuchar cambios en PhotoService (ej. likes)
+                return Consumer<PhotoService>(
+                  builder: (ctx, photoService, _) {
+                    final photos = photoService.items;
+                    return RefreshIndicator(
+                      onRefresh: () => Provider.of<PhotoService>(
+                        ctx,
+                        listen: false,
+                      ).fetchPhotos(),
+                      child: ListView.builder(
+                        itemCount: photos.length,
+                        itemBuilder: (c, i) => PhotoItem(photo: photos[i]),
+                      ),
+                    );
+                  },
+                );
+              },
             );
           },
         );
       case 1: // Buscador
-        return const Center(child: Text("Próximamente: Buscador de usuarios"));
+        return const FotosUsuarioScreen(isSearchMode: true);
       case 2: // Crear (Acción del FAB)
         // Pasamos el callback para que al terminar de subir, vuelva a la home
         return FotoCreateScreen(
@@ -93,7 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case 3: // Mis Fotos
-        return const MisFotosScreen(); // Devolvemos la pantalla de Mis Fotos
+        return const FotosUsuarioScreen(
+          isSearchMode: false,
+        ); // Devolvemos la pantalla de Mis Fotos
       case 4: // Perfil
         return const PerfilScreen(); // Devolvemos la pantalla de Perfil
       default:
@@ -103,9 +111,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos las fotos del provider
-    final photos = Provider.of<PhotoService>(context).items;
-
     return PopScope(
       canPop: _canPopNow,
       onPopInvoked: (didPop) async {
@@ -150,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // ********** Cuerpo Dinámico ********** //
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _buildPage(photos),
+            : _buildPage(),
         // ********** FIN Cuerpo ********** //
 
         // ********** Botón Flotante (FAB) - CREAR ********** //
@@ -160,9 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {
               _selectedIndex = 2;
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Abrir cámara/galería')),
-            );
           },
           backgroundColor:
               Colors.orange, // Color distintivo para que sobresalga

@@ -12,6 +12,8 @@ class PhotoService with ChangeNotifier {
   List<Fotografia> _items = [];
   List<Fotografia> _misItems =
       []; // Lista para almacenar las fotos del usuario autenticado
+  List<Fotografia> _searchedUserItems =
+      []; // Lista para almacenar las fotos de un usuario buscado
 
   List<Fotografia> get items {
     return [..._items];
@@ -20,6 +22,11 @@ class PhotoService with ChangeNotifier {
   // Getter para acceder a las fotos del usuario
   List<Fotografia> get misItems {
     return [..._misItems];
+  }
+
+  // Getter para acceder a las fotos del usuario buscado
+  List<Fotografia> get searchedUserItems {
+    return [..._searchedUserItems];
   }
 
   // ********** Metodos Auxiliares ********** //
@@ -106,6 +113,78 @@ class PhotoService with ChangeNotifier {
     }
   }
   // ********** FIN API: Carga de Mis Fotos ********** //
+
+  // ********** API: Carga de Fotos de Usuario Buscado ********** //
+  Future<void> fetchUserPhotos(int userId) async {
+    final url = Uri.parse('$_baseUrl/fotografias-usuario/$userId');
+    final token = await _getToken();
+
+    if (token == null) {
+      throw Exception('No hay token, usuario no autenticado');
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> photosList = data['data'];
+
+        _searchedUserItems = photosList
+            .map((json) => Fotografia.fromJson(json))
+            .toList();
+        notifyListeners();
+      } else {
+        throw Exception('Error al cargar fotos del usuario');
+      }
+    } catch (error) {
+      rethrow;
+    }
+  }
+  // ********** FIN API: Carga de Fotos de Usuario Buscado ********** //
+
+  // ********** API: Busqueda de Usuario por Nombre ********** //
+  Future<int?> searchUserIdByName(String name) async {
+    final url = Uri.parse('$_baseUrl/users/search?query=$name');
+    final token = await _getToken();
+
+    if (token == null) {
+      throw Exception('No hay token, usuario no autenticado');
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> users =
+            data['data']; // Resource collection wraps in data
+
+        if (users.isNotEmpty) {
+          // Devolvemos el ID del primer usuario encontrado
+          return users[0]['id'];
+        }
+        return null;
+      } else {
+        throw Exception('Error al buscar usuario');
+      }
+    } catch (error) {
+      rethrow;
+    }
+  }
+  // ********** FIN API: Busqueda de Usuario por Nombre ********** //
 
   // ********** API: Likes ********** //
   // Funcion para alternar los likes

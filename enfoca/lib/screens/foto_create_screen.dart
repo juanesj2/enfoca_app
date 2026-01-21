@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'package:latlong2/latlong.dart';
 import '../services/photo_service.dart';
+import 'map_selection_screen.dart';
 
 class FotoCreateScreen extends StatefulWidget {
   static const routeName = '/foto-create';
@@ -114,6 +116,24 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     } finally {
       setState(() {
         _isGettingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _selectLocationOnMap() async {
+    final result = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(
+        builder: (ctx) =>
+            MapSelectionScreen(initialLat: _latitud, initialLng: _longitud),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _latitud = result.latitude;
+        _longitud = result.longitude;
+        _latController.text = _latitud.toString();
+        _lngController.text = _longitud.toString();
       });
     }
   }
@@ -270,6 +290,15 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
+                    // --- texto ---
+                    const Text(
+                      'Ubicacion (opcional)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
                     // --- Location ---
                     Row(
                       children: [
@@ -290,18 +319,28 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         else
-                          TextButton.icon(
-                            icon: const Icon(Icons.my_location),
-                            label: const Text('Añadir Ubicación'),
-                            onPressed: _getCurrentLocation,
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton.icon(
+                                icon: const Icon(Icons.my_location),
+                                label: const Text('Ubicación actual'),
+                                onPressed: _getCurrentLocation,
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(Icons.map),
+                                label: const Text('Elige ubicación'),
+                                onPressed: _selectLocationOnMap,
+                              ),
+                            ],
                           ),
                       ],
                     ),
                     const Divider(),
 
-                    // --- Tech Specs (Collapsible or just fields) ---
+                    // --- texto ---
                     const Text(
-                      'Datos Técnicos (Opcional)',
+                      'Datos Técnicos',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
