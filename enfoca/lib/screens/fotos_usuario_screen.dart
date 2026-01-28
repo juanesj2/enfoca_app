@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../services/photo_service.dart';
 import '../widgets/photo_item.dart';
 
-// Cambiamos el nombre de MisFotosScreen a FotosUsuarioScreen para que sea mas genérico
 class FotosUsuarioScreen extends StatefulWidget {
   final bool isSearchMode; // Indica si estamos en modo buscador
 
