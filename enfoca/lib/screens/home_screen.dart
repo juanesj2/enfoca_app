@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/photo_service.dart';
-import '../services/auth_service.dart';
+
 import '../widgets/photo_item.dart';
 import 'foto_create_screen.dart';
 import 'fotos_usuario_screen.dart'; // Importamos la pantalla de Mis Fotos
@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = true;
       });
       Provider.of<PhotoService>(context)
-          .fetchPhotos()
+          .obtenerFotos()
           .then((_) {
             setState(() {
               _isLoading = false;
@@ -52,14 +52,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Método para cambiar de página desde la barra de navegación
-  void _onItemTapped(int index) {
+  void _alTocarItem(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
   // Método para construir la pantalla correspondiente según el índice
-  Widget _buildPage() {
+  Widget _construirPagina() {
     switch (_selectedIndex) {
       case 0: // Inicio (Explorar)
         // Usamos un Navigator anidado para que al entrar en el detalle se mantenga el BottomBar
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onRefresh: () => Provider.of<PhotoService>(
                         ctx,
                         listen: false,
-                      ).fetchPhotos(),
+                      ).obtenerFotos(),
                       child: ListView.builder(
                         itemCount: photos.length,
                         itemBuilder: (c, i) => PhotoItem(photo: photos[i]),
@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return FotoCreateScreen(
           onPhotoUploaded: () {
             // Volver al inicio (Feed) y refrescar si es necesario
-            _onItemTapped(0);
+            _alTocarItem(0);
           },
         );
       case 3: // Mis Fotos
@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // ********** Cuerpo Dinámico ********** //
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _buildPage(),
+            : _construirPagina(),
         // ********** FIN Cuerpo ********** //
 
         // ********** Botón Flotante (FAB) - CREAR ********** //
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icons.home,
                     color: _selectedIndex == 0 ? Colors.blue : Colors.grey,
                   ),
-                  onPressed: () => _onItemTapped(0),
+                  onPressed: () => _alTocarItem(0),
                   tooltip: 'Inicio',
                 ),
                 IconButton(
@@ -199,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icons.search,
                     color: _selectedIndex == 1 ? Colors.blue : Colors.grey,
                   ),
-                  onPressed: () => _onItemTapped(1),
+                  onPressed: () => _alTocarItem(1),
                   tooltip: 'Buscar',
                 ),
 
@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icons.person,
                     color: _selectedIndex == 3 ? Colors.blue : Colors.grey,
                   ),
-                  onPressed: () => _onItemTapped(3),
+                  onPressed: () => _alTocarItem(3),
                   tooltip: 'Mis Fotos',
                 ),
                 IconButton(
@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icons.manage_accounts,
                     color: _selectedIndex == 4 ? Colors.blue : Colors.grey,
                   ),
-                  onPressed: () => _onItemTapped(4),
+                  onPressed: () => _alTocarItem(4),
                   tooltip: 'Perfil',
                 ),
               ],

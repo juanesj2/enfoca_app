@@ -3,14 +3,14 @@ import '../models/comentario.dart';
 
 class ComentarioItem extends StatelessWidget {
   final Comentario comentario;
-  final int? currentUserId; // ID del usuario actual para verificaciones
-  final VoidCallback? onDelete; // Funcion callback para borrar el comentario
+  final int? idUsuarioActual; // ID del usuario actual para verificaciones
+  final VoidCallback? alBorrar; // Funcion callback para borrar el comentario
 
   const ComentarioItem({
     Key? key,
     required this.comentario,
-    this.currentUserId,
-    this.onDelete,
+    this.idUsuarioActual,
+    this.alBorrar,
   }) : super(key: key);
 
   @override
@@ -52,16 +52,17 @@ class ComentarioItem extends StatelessWidget {
                 const Spacer(), // Empuja el contenido a la derecha
                 // Fecha formateada
                 Text(
-                  _formatDate(comentario.fecha),
+                  _formatearFecha(comentario.fecha),
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
 
                 // ********** Boton de Borrar (Solo si es mi comentario) ********** //
-                if (currentUserId != null && comentario.userId == currentUserId)
+                if (idUsuarioActual != null &&
+                    comentario.userId == idUsuarioActual)
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                     onPressed:
-                        onDelete, // Ejecuta la funcion de borrado pasada por parametro
+                        alBorrar, // Ejecuta la funcion de borrado pasada por parametro
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -82,7 +83,7 @@ class ComentarioItem extends StatelessWidget {
   }
 
   // Metodo auxiliar para formatear la fecha a DD/MM/AAAA
-  String _formatDate(DateTime date) {
+  String _formatearFecha(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }
 }

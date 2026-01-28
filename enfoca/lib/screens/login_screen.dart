@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // ********** FIN Variables de Estado ********** //
 
   // ********** Logica de Login ********** //
-  Future<void> _submit() async {
+  Future<void> _iniciarSesion() async {
     // 1. Validamos el formulario (revisa los validators de los TextFormFields)
     if (!_formKey.currentState!.validate()) {
       return;
@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await Provider.of<AuthService>(
         context,
         listen: false,
-      ).login(_emailController.text, _passwordController.text);
+      ).iniciarSesion(_emailController.text, _passwordController.text);
 
       // Si el login es exitoso, main.dart detectará el cambio de estado
       // y nos llevará al Home automáticamente.
@@ -94,14 +94,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize:
                       MainAxisSize.min, // Ocupa solo el espacio necesario
                   children: [
-                    // --- Logo ---
+                    // ********** Logo ********** //
                     Image.network(
                       'https://raw.githubusercontent.com/juanesj2/Enfoca_ProyectoFinal/refs/heads/main/public/imagenes/logo_ENFOKA-sin-fondo.png',
                       height: 250,
                     ),
                     SizedBox(height: 20),
 
-                    // --- Input Email ---
+                    // ********** Input Email ********** //
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(labelText: 'Email'),
@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    // --- Input Contraseña ---
+                    // ********** Input Contraseña ********** //
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(labelText: 'Contraseña'),
@@ -128,13 +128,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     SizedBox(height: 20),
 
-                    // --- Boton de Accion (Entrar o Spinner) ---
+                    // ********** Botón de Acción ********** //
                     if (_isLoading)
                       CircularProgressIndicator()
                     else
-                      ElevatedButton(child: Text('Entrar'), onPressed: _submit),
+                      ElevatedButton(
+                        child: Text('Entrar'),
+                        onPressed: _iniciarSesion,
+                      ),
 
-                    // --- Enlace a Registro ---
+                    // ********** Enlace a Registro ********** //
                     SizedBox(height: 10),
                     TextButton(
                       child: Text('¿No tienes cuenta? Regístrate'),

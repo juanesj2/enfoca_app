@@ -6,8 +6,6 @@ import '../models/user.dart';
 
 class AuthService with ChangeNotifier {
   // Configuración de la URL Base de la API
-  // Si usas Windows/Web, usa 127.0.0.1 (o la URL real)
-  // Si usas Emulador Android, usa 10.0.2.2
   static const String _baseUrl = 'http://enfoca.alwaysdata.net/api';
 
   // ********** Variables de Estado ********** //
@@ -16,19 +14,19 @@ class AuthService with ChangeNotifier {
   // ********** FIN Variables de Estado ********** //
 
   // Getters para acceder al estado desde fuera
-  bool get isAuth => _token != null;
+  bool get estaAutenticado => _token != null;
   String? get token => _token;
-  User? get user => _user;
+  User? get usuario => _user;
 
-  // ********** Metodos Publicos de Autenticacion ********** //
+  // ********** Métodos Públicos de Autenticación ********** //
 
-  // Iniciar sesion
-  Future<void> login(String email, String password) async {
-    return _authenticate(email, password, 'login');
+  // Iniciar sesión
+  Future<void> iniciarSesion(String email, String password) async {
+    return _autenticar(email, password, 'login');
   }
 
   // Registrar nuevo usuario
-  Future<void> register(
+  Future<void> registrarse(
     String name,
     String email,
     String password,
@@ -55,7 +53,7 @@ class AuthService with ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         _token = responseData['access_token'];
         // Inmediatamente despues del registro, obtenemos y guardamos los datos del usuario
-        await _fetchAndStoreUserData(_token!);
+        await _obtenerYGuardarDatosUsuario(_token!);
         notifyListeners(); // Notificamos a la UI que el estado ha cambiado
       } else {
         throw Exception(responseData['message'] ?? 'Error al registrarse');
@@ -65,8 +63,8 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  // Cerrar sesion
-  Future<void> logout() async {
+  // Cerrar sesión
+  Future<void> cerrarSesion() async {
     _token = null;
     _user = null;
     // Limpiamos datos persistidos
@@ -74,12 +72,12 @@ class AuthService with ChangeNotifier {
     prefs.remove('userData');
     notifyListeners();
   }
-  // ********** FIN Metodos Publicos ********** //
+  // ********** FIN Métodos Públicos ********** //
 
-  // ********** Metodos Privados y Auxiliares ********** //
+  // ********** Métodos Privados y Auxiliares ********** //
 
   // Metodo generico para login (podria reutilizarse para otros tipos de auth)
-  Future<void> _authenticate(
+  Future<void> _autenticar(
     String email,
     String password,
     String urlSegment,
@@ -101,7 +99,7 @@ class AuthService with ChangeNotifier {
       if (response.statusCode == 200) {
         _token = responseData['access_token'];
         // Obtenemos los datos del usuario para evitar llamadas innecesarias despues
-        await _fetchAndStoreUserData(_token!);
+        await _obtenerYGuardarDatosUsuario(_token!);
         notifyListeners();
       } else {
         throw Exception(responseData['message'] ?? 'Error al iniciar sesión');
@@ -112,7 +110,7 @@ class AuthService with ChangeNotifier {
   }
 
   // Obtiene los datos del usuario (/api/user) y los guarda localmente
-  Future<void> _fetchAndStoreUserData(String token) async {
+  Future<void> _obtenerYGuardarDatosUsuario(String token) async {
     final url = Uri.parse('$_baseUrl/user');
     try {
       final response = await http.get(
@@ -146,5 +144,5 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  // ********** FIN Metodos Privados ********** //
+  // ********** FIN Métodos Privados ********** //
 }

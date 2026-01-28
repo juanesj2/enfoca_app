@@ -12,7 +12,7 @@ class PhotoService with ChangeNotifier {
   List<Fotografia> _items = [];
   List<Fotografia> _misItems =
       []; // Lista para almacenar las fotos del usuario autenticado
-  List<Fotografia> _searchedUserItems =
+  List<Fotografia> _itemsUsuarioBuscado =
       []; // Lista para almacenar las fotos de un usuario buscado
 
   List<Fotografia> get items {
@@ -25,14 +25,40 @@ class PhotoService with ChangeNotifier {
   }
 
   // Getter para acceder a las fotos del usuario buscado
-  List<Fotografia> get searchedUserItems {
-    return [..._searchedUserItems];
+  List<Fotografia> get itemsUsuarioBuscado {
+    return [..._itemsUsuarioBuscado];
   }
 
-  // ********** Metodos Auxiliares ********** //
+  // Método para buscar una foto por ID en TODAS las listas locales
+  Fotografia? obtenerFotoPorId(int id) {
+    // 1. Buscar en Items generales (Feed)
+    try {
+      return _items.firstWhere((photo) => photo.id == id);
+    } catch (e) {
+      // No encontrada
+    }
+
+    // 2. Buscar en Mis Fotos
+    try {
+      return _misItems.firstWhere((photo) => photo.id == id);
+    } catch (e) {
+      // No encontrada
+    }
+
+    // 3. Buscar en Fotos de Usuario Buscado
+    try {
+      return _itemsUsuarioBuscado.firstWhere((photo) => photo.id == id);
+    } catch (e) {
+      // No encontrada
+    }
+
+    return null;
+  }
+
+  // ********** Métodos Auxiliares ********** //
 
   // Método auxiliar para obtener el token guardado en SharedPreferences
-  Future<String?> _getToken() async {
+  Future<String?> _obtenerToken() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('userData')) {
       return null;
@@ -41,12 +67,12 @@ class PhotoService with ChangeNotifier {
         json.decode(prefs.getString('userData')!) as Map<String, dynamic>;
     return extractedUserData['token'];
   }
-  // ********** FIN Metodos Auxiliares ********** //
+  // ********** FIN Métodos Auxiliares ********** //
 
   // ********** API: Carga de Fotos ********** //
-  Future<void> fetchPhotos() async {
+  Future<void> obtenerFotos() async {
     final url = Uri.parse('$_baseUrl/fotografias');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     if (token == null) {
       throw Exception('No hay token, usuario no autenticado');
@@ -79,9 +105,9 @@ class PhotoService with ChangeNotifier {
 
   // ********** API: Carga de Mis Fotos ********** //
   // Obtiene únicamente las fotos subidas por el usuario logueado
-  Future<void> fetchMisFotos() async {
+  Future<void> obtenerMisFotos() async {
     final url = Uri.parse('$_baseUrl/mis-fotos');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     if (token == null) {
       throw Exception('No hay token, usuario no autenticado');
@@ -115,9 +141,9 @@ class PhotoService with ChangeNotifier {
   // ********** FIN API: Carga de Mis Fotos ********** //
 
   // ********** API: Carga de Fotos de Usuario Buscado ********** //
-  Future<void> fetchUserPhotos(int userId) async {
+  Future<void> obtenerFotosUsuario(int userId) async {
     final url = Uri.parse('$_baseUrl/fotografias-usuario/$userId');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     if (token == null) {
       throw Exception('No hay token, usuario no autenticado');
@@ -136,7 +162,7 @@ class PhotoService with ChangeNotifier {
         final data = json.decode(response.body);
         final List<dynamic> photosList = data['data'];
 
-        _searchedUserItems = photosList
+        _itemsUsuarioBuscado = photosList
             .map((json) => Fotografia.fromJson(json))
             .toList();
         notifyListeners();
@@ -149,10 +175,10 @@ class PhotoService with ChangeNotifier {
   }
   // ********** FIN API: Carga de Fotos de Usuario Buscado ********** //
 
-  // ********** API: Busqueda de Usuario por Nombre ********** //
-  Future<int?> searchUserIdByName(String name) async {
+  // ********** API: Búsqueda de Usuario por Nombre ********** //
+  Future<int?> buscarIdUsuarioPorNombre(String name) async {
     final url = Uri.parse('$_baseUrl/users/search?query=$name');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     if (token == null) {
       throw Exception('No hay token, usuario no autenticado');
@@ -188,33 +214,64 @@ class PhotoService with ChangeNotifier {
 
   // ********** API: Likes ********** //
   // Funcion para alternar los likes
-  Future<void> toggleLike(int id) async {
-    // usamos una funcion asincrona para no colgar la app
-    final index = _items.indexWhere((item) => item.id == id);
-    if (index < 0) return;
+  // ********** API: Likes ********** //
+  // Funcion para alternar los likes
+  Future<void> alternarLike(int id) async {
+    // Helper para actualizar una lista especifica
+    void actualizarLista(List<Fotografia> lista) {
+      final index = lista.indexWhere((item) => item.id == id);
+      if (index >= 0) {
+        final oldPhoto = lista[index];
+        final isLiked = oldPhoto.likedByUser;
+        final newCount = isLiked
+            ? (oldPhoto.likesCount > 0 ? oldPhoto.likesCount - 1 : 0)
+            : oldPhoto.likesCount + 1;
 
-    final oldPhoto = _items[index];
-    // Comprobamos si le hemos dado like a la foto
-    final isLiked = oldPhoto.likedByUser;
-    // Evitamos likes negativos actualizando localmente (Optimistic UI)
-    final newCount = isLiked
-        ? (oldPhoto.likesCount > 0 ? oldPhoto.likesCount - 1 : 0)
-        : oldPhoto.likesCount + 1;
+        lista[index] = oldPhoto.copyWith(
+          likedByUser: !isLiked,
+          likesCount: newCount,
+        );
+      }
+    }
 
-    _items[index] = oldPhoto.copyWith(
-      likedByUser: !isLiked,
-      likesCount: newCount,
-    );
+    // Buscamos la foto original para saber el estado actual (usamos _items como referencia principal, o cualquiera)
+    // Necesitamos saber si estaba likeada para la llamada a la API.
+    // Asumimos que todas las listas están sincronizadas en cuanto a "likedByUser".
+    bool isLikedOriginal = false;
+    // Intentamos buscar en _items primero
+    var index = _items.indexWhere((item) => item.id == id);
+    if (index >= 0) {
+      isLikedOriginal = _items[index].likedByUser;
+    } else {
+      // Si no está en _items, buscamos en _misItems
+      index = _misItems.indexWhere((item) => item.id == id);
+      if (index >= 0) {
+        isLikedOriginal = _misItems[index].likedByUser;
+      } else {
+        // Si no, en _itemsUsuarioBuscado
+        index = _itemsUsuarioBuscado.indexWhere((item) => item.id == id);
+        if (index >= 0) {
+          isLikedOriginal = _itemsUsuarioBuscado[index].likedByUser;
+        } else {
+          // Si no está en ninguna, no hacemos nada
+          return;
+        }
+      }
+    }
+
+    // Actualizamos optimísticamente TODAS las listas
+    actualizarLista(_items);
+    actualizarLista(_misItems);
+    actualizarLista(_itemsUsuarioBuscado);
+
     notifyListeners();
 
     final url = Uri.parse('$_baseUrl/fotografias/$id/like');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     // Enviamos las peticiones al servidor
     try {
-      // Comprobamos si le hemos dado like
-      final response = isLiked
-          // Si la foto tiene nuestro like en metodo que le ponemos es el delete
+      final response = isLikedOriginal
           ? await http.delete(
               url,
               headers: {
@@ -222,7 +279,6 @@ class PhotoService with ChangeNotifier {
                 'Accept': 'application/json',
               },
             )
-          // Si No tiene nuestro like el metodo que tendra es un post
           : await http.post(
               url,
               headers: {
@@ -233,55 +289,70 @@ class PhotoService with ChangeNotifier {
 
       if (response.statusCode >= 400) {
         // Revertir cambios si falla (Rollback)
-        _items[index] = oldPhoto;
+        // Simplemente volvemos a llamar a actualizarLista, que invierte el estado
+        actualizarLista(_items);
+        actualizarLista(_misItems);
+        actualizarLista(_itemsUsuarioBuscado);
         notifyListeners();
-        // Opcional: lanzar error o mostrar mensaje
         print('Error al dar like: ${response.statusCode}');
       }
     } catch (error) {
       // Revertir cambios si hay excepción
-      _items[index] = oldPhoto;
+      actualizarLista(_items);
+      actualizarLista(_misItems);
+      actualizarLista(_itemsUsuarioBuscado);
       notifyListeners();
       rethrow;
     }
   }
   // ********** FIN API: Likes ********** //
 
-  // ********** Gestion Local de Comentarios ********** //
+  // ********** Gestión Local de Comentarios ********** //
   // Se llaman desde la pantalla de detalle para actualizar la lista principal
 
-  void notifyCommentAdded(int photoId) {
-    final index = _items.indexWhere((item) => item.id == photoId);
-    if (index < 0) return;
+  void notificarComentarioAnadido(int photoId) {
+    void actualizar(List<Fotografia> lista) {
+      final index = lista.indexWhere((item) => item.id == photoId);
+      if (index >= 0) {
+        final oldPhoto = lista[index];
+        lista[index] = oldPhoto.copyWith(
+          comentariosCount: oldPhoto.comentariosCount + 1,
+          comentadoPorUsuario: true,
+        );
+      }
+    }
 
-    final oldPhoto = _items[index];
-    _items[index] = oldPhoto.copyWith(
-      comentariosCount: oldPhoto.comentariosCount + 1,
-      comentadoPorUsuario: true, // Asumimos que si has comentado, ahora es true
-    );
+    actualizar(_items);
+    actualizar(_misItems);
+    actualizar(_itemsUsuarioBuscado);
     notifyListeners();
   }
 
-  void notifyCommentDeleted(int photoId, bool stillHasComments) {
-    final index = _items.indexWhere((item) => item.id == photoId);
-    if (index < 0) return;
+  void notificarComentarioEliminado(int photoId, bool stillHasComments) {
+    void actualizar(List<Fotografia> lista) {
+      final index = lista.indexWhere((item) => item.id == photoId);
+      if (index >= 0) {
+        final oldPhoto = lista[index];
+        lista[index] = oldPhoto.copyWith(
+          comentariosCount: oldPhoto.comentariosCount > 0
+              ? oldPhoto.comentariosCount - 1
+              : 0,
+          comentadoPorUsuario: stillHasComments,
+        );
+      }
+    }
 
-    final oldPhoto = _items[index];
-    _items[index] = oldPhoto.copyWith(
-      comentariosCount: oldPhoto.comentariosCount > 0
-          ? oldPhoto.comentariosCount - 1
-          : 0,
-      comentadoPorUsuario:
-          stillHasComments, // Actualizamos basándonos en si quedan comentarios
-    );
+    actualizar(_items);
+    actualizar(_misItems);
+    actualizar(_itemsUsuarioBuscado);
     notifyListeners();
   }
 
-  // ********** FIN Gestion Local de Comentarios ********** //
+  // ********** FIN Gestión Local de Comentarios ********** //
 
-  // ************ API: Crear Fotografia ************ //
+  // ************ API: Crear Fotografía ************ //
 
-  Future<void> createPhoto(
+  Future<void> crearFoto(
     File image,
     String titulo,
     String descripcion, {
@@ -292,7 +363,7 @@ class PhotoService with ChangeNotifier {
     double? apertura,
   }) async {
     final url = Uri.parse('$_baseUrl/fotografias');
-    final token = await _getToken();
+    final token = await _obtenerToken();
 
     if (token == null) {
       throw Exception('No authentication token found');
@@ -306,7 +377,7 @@ class PhotoService with ChangeNotifier {
       ..fields['titulo'] = titulo
       ..fields['descripcion'] = descripcion;
 
-    // Optional fields
+    // Campos opcionales
     if (latitud != null) request.fields['latitud'] = latitud.toString();
     if (longitud != null) request.fields['longitud'] = longitud.toString();
     if (iso != null) request.fields['ISO'] = iso.toString();
@@ -315,13 +386,13 @@ class PhotoService with ChangeNotifier {
     }
     if (apertura != null) request.fields['apertura'] = apertura.toString();
 
-    // Image file
-    // Assumes simple filename based extension or jpeg default.
-    // Ideally we verify extension or use a mime library,
-    // but for now we trust the file extension or default to jpg.
+    // Archivo de imagen
+    // Asume que la extension es simple o por defecto jpg/jpeg.
+    // Idealmente deberiamos verificar el mime type.
+    // pero por ahora confiamos en la extension del archivo.
     request.files.add(
       await http.MultipartFile.fromPath(
-        'direccion_imagen', // Changed from 'imagen' to match backend validation error "The direccion imagen field is required"
+        'direccion_imagen', // Cambiado de 'imagen' para coincidir con validacion del backend
         image.path,
       ),
     );
@@ -331,14 +402,13 @@ class PhotoService with ChangeNotifier {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Success
-        // final responseData = json.decode(response.body);
-        // We could add the new photo to _items local list directly to avoid a refetch
-        // but fetchPhotos() is safer to get the exact server state including URL.
-        // Let's just notify and rely on pull-to-refresh or logic to refetch.
-        await fetchPhotos();
+        // Exito
+        // Podriamos añadir la foto a _items localmente para evitar recargar
+        // pero obtenerFotos() es más seguro para asegurar el estado del servidor (URLs, etc).
+        // Por ahora recargamos todo.
+        await obtenerFotos();
       } else {
-        print('Error creating photo: ${response.body}');
+        print('Error al crear foto: ${response.body}');
         // Intentamos decodificar el error si es JSON
         String errorMsg = 'Error ${response.statusCode}';
         try {
@@ -354,10 +424,10 @@ class PhotoService with ChangeNotifier {
         throw Exception(errorMsg);
       }
     } catch (error) {
-      print('Exception creating photo: $error');
+      print('Excepcion al crear foto: $error');
       rethrow;
     }
   }
 
-  // ********** FIN API: Crear Fotografia ********** //
+  // ********** FIN API: Crear Fotografía ********** //
 }

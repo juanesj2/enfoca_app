@@ -24,7 +24,7 @@ class _MisFotosScreenState extends State<MisFotosScreen> {
       });
       // Llamamos al nuevo método fetchMisFotos
       Provider.of<PhotoService>(context)
-          .fetchMisFotos()
+          .obtenerMisFotos()
           .then((_) {
             setState(() {
               _isLoading = false;
@@ -58,7 +58,7 @@ class _MisFotosScreenState extends State<MisFotosScreen> {
               onRefresh: () => Provider.of<PhotoService>(
                 context,
                 listen: false,
-              ).fetchMisFotos(),
+              ).obtenerMisFotos(),
               child: misFotos.isEmpty
                   ? const Center(
                       child: Text('No has subido ninguna foto todavía.'),

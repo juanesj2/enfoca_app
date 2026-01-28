@@ -32,7 +32,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
           _isLoading = true;
         });
         Provider.of<PhotoService>(context)
-            .fetchMisFotos()
+            .obtenerMisFotos()
             .then((_) {
               setState(() {
                 _isLoading = false;
@@ -72,7 +72,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
         userId = await Provider.of<PhotoService>(
           context,
           listen: false,
-        ).searchUserIdByName(input);
+        ).buscarIdUsuarioPorNombre(input);
 
         if (userId == null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +111,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
       await Provider.of<PhotoService>(
         context,
         listen: false,
-      ).fetchUserPhotos(userId);
+      ).obtenerFotosUsuario(userId);
 
       // Opcional: Limpiar el campo o cerrar teclado
       FocusScope.of(context).unfocus();
@@ -132,7 +132,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
   Widget build(BuildContext context) {
     // Decidimos qué lista de fotos mostrar según el modo
     final photos = widget.isSearchMode
-        ? Provider.of<PhotoService>(context).searchedUserItems
+        ? Provider.of<PhotoService>(context).itemsUsuarioBuscado
         : Provider.of<PhotoService>(context).misItems;
 
     // Título de la AppBar dependiente del modo
@@ -193,7 +193,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
                         await Provider.of<PhotoService>(
                           context,
                           listen: false,
-                        ).fetchMisFotos();
+                        ).obtenerMisFotos();
                       }
                     },
                     child: photos.isEmpty

@@ -23,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // ********** FIN Variables de Estado ********** //
 
   // ********** Logica de Registro ********** //
-  Future<void> _submit() async {
+  Future<void> _registrarse() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -34,7 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Llamada al servicio para registrar
-      await Provider.of<AuthService>(context, listen: false).register(
+      await Provider.of<AuthService>(context, listen: false).registrarse(
         _nameController.text,
         _emailController.text,
         _passwordController.text,
@@ -78,7 +78,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // --- Nombre ---
+                // ********** Nombre ********** //
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(labelText: 'Nombre'),
@@ -90,7 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // --- Email ---
+                // ********** Email ********** //
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(labelText: 'Email'),
@@ -103,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // --- Contraseña ---
+                // ********** Contraseña ********** //
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(labelText: 'Contraseña'),
@@ -116,7 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // --- Confirmar Contraseña ---
+                // ********** Confirmar Contraseña ********** //
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: InputDecoration(
@@ -132,13 +132,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 20),
 
-                // --- Boton de Registro ---
+                // ********** Botón de Registro ********** //
                 if (_isLoading)
                   CircularProgressIndicator()
                 else
                   ElevatedButton(
                     child: Text('Registrarse'),
-                    onPressed: _submit,
+                    onPressed: _registrarse,
                   ),
               ],
             ),

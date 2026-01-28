@@ -21,118 +21,130 @@ class PhotoItem extends StatelessWidget {
       margin: EdgeInsets.all(10),
       elevation: 5, // Sombra para que quede más bonito
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      clipBehavior:
-          Clip.antiAlias, // Necesario para que el InkWell respete los bordes
-      child: InkWell(
-        onTap: fueraFotografia
-            ? () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (ctx) => PhotoScreen(photo: photo),
-                  ),
-                );
-              }
-            : null, // Si estamos dentro, no hace nada el tap general
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Imagen con bordes redondeados arriba (ya no es necesario el Radius porque el Card recorta)
-            // Pero lo mantenemos si el InkWell no recorta childs, pero con clipBehavior en Card sí lo hace.
-            // Dejamos el ClipRRect interno por seguridad o lo quitamos?
-            // Si el Card tiene clipAntiAlias, todo lo de dentro se recorta.
-            // Para simplificar, dejaremos el child tal cual, solo envolviendo en InkWell.
-            Image.network(
-              photo.direccionImagen,
-              fit: fueraFotografia ? BoxFit.cover : BoxFit.contain,
-              height: fueraFotografia ? 250 : 450,
-              width: double.infinity,
-              errorBuilder: (ctx, error, stackTrace) => Container(
-                height: 250,
-                color: Colors.grey[300],
-                child: Center(
-                  child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                ),
-              ),
+      child: fueraFotografia
+          ? GestureDetector(
+              onTap: () {
+                Future.delayed(Duration.zero, () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => PhotoScreen(photo: photo),
+                    ),
+                  );
+                });
+              },
+              child: _buildCardContent(context),
+            )
+          : _buildCardContent(context),
+    );
+  }
+
+  Widget _buildCardContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Imagen con bordes redondeados arriba (ya no es necesario el Radius porque el Card recorta)
+        Image.network(
+          photo.direccionImagen,
+          fit: fueraFotografia ? BoxFit.cover : BoxFit.contain,
+          height: fueraFotografia ? 250 : 450,
+          width: double.infinity,
+          errorBuilder: (ctx, error, stackTrace) => Container(
+            height: 250,
+            color: Colors.grey[300],
+            child: Center(
+              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
             ),
-            Padding(
-              padding: EdgeInsets.all(15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titulo de la imagen
+              Text(
+                photo.titulo,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              // Descripcio de la imagen
+              Text(
+                photo.descripcion,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w100),
+              ),
+              SizedBox(height: 5),
+              Row(
                 children: [
-                  // Titulo de la imagen
+                  // Esto es un avatar con la primera letra del usuario
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Colors.deepPurple,
+                    child: Text(
+                      photo.userName[0].toUpperCase(),
+                      style: TextStyle(fontSize: 10, color: Colors.white),
+                    ),
+                  ),
+                  // Aqui mostramos datos del usuario
+                  SizedBox(width: 8),
                   Text(
-                    photo.titulo,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    photo.userName,
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
-                  // Descripcio de la imagen
-                  Text(
-                    photo.descripcion,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w100),
-                  ),
-                  SizedBox(height: 5),
-                  Row(
-                    children: [
-                      // Esto es un avatar con la primera letra del usuario
-                      CircleAvatar(
-                        radius: 10,
-                        backgroundColor: Colors.deepPurple,
-                        child: Text(
-                          photo.userName[0].toUpperCase(),
-                          style: TextStyle(fontSize: 10, color: Colors.white),
-                        ),
-                      ),
-                      // Aqui mostramos datos del usuario
-                      SizedBox(width: 8),
-                      Text(
-                        photo.userName,
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      // ********* Likes **********//
-                      TextButton.icon(
-                        // Usamos un boton con icono
-                        onPressed: () {
-                          Provider.of<PhotoService>(
-                            context,
-                            listen: false,
-                          ).toggleLike(photo.id);
-                        },
-                        icon: Icon(
+                ],
+              ),
+              SizedBox(height: 15),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  // ********* Likes **********//
+                  // ********* Likes **********//
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      Provider.of<PhotoService>(
+                        context,
+                        listen: false,
+                      ).alternarLike(photo.id);
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, // To behave like a button
+                      children: [
+                        Icon(
                           photo.likedByUser
                               ? Icons.favorite
                               : Icons.favorite_border,
                           color: photo.likedByUser ? Colors.red : Colors.grey,
                         ),
-                        label: Text(
+                        const SizedBox(width: 8),
+                        Text(
                           '${photo.likesCount}',
                           style: TextStyle(
                             color: photo.likedByUser ? Colors.red : Colors.grey,
                           ),
                         ),
-                      ),
-                      // ******** FIN Like ********//
+                      ],
+                    ),
+                  ),
+                  // ******** FIN Like ********//
 
-                      // ********* Comentarios **********//
-                      TextButton.icon(
-                        // Boton con icono
-                        // Si el boton de comentar esta "activado" le dejamos hacer cosas
-                        onPressed: fueraFotografia
-                            ? () {
-                                // Al presionar el boton pasan cosas
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (ctx) => PhotoScreen(photo: photo),
-                                  ),
-                                );
-                              }
-                            // Si esta "desactivado" Lo bloqueamos
-                            : null,
-                        icon: Icon(
+                  // ********* Comentarios **********//
+                  // ********* Comentarios **********//
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: fueraFotografia
+                        ? () {
+                            Future.delayed(Duration.zero, () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (ctx) => PhotoScreen(photo: photo),
+                                ),
+                              );
+                            });
+                          }
+                        : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
                           photo.comentadoPorUsuario
                               ? Icons.chat_bubble
                               : Icons.chat_bubble_outline,
@@ -140,36 +152,41 @@ class PhotoItem extends StatelessWidget {
                               ? Colors.blue
                               : Colors.grey,
                         ),
-                        label: Text(
+                        const SizedBox(width: 8),
+                        Text(
                           '${photo.comentariosCount}',
                           style: TextStyle(color: Colors.blue),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
 
-                      // ********* FIN Comentarios **********//
-                      TextButton.icon(
-                        onPressed: () {
-                          // Acción de compartir
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Compartir no implementado aún'),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.share, color: Colors.grey),
-                        label: Text(
-                          'Compartir',
-                          style: TextStyle(color: Colors.grey),
+                  // ********* FIN Comentarios **********//
+                  // ********* Compartir **********//
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Compartir no implementado aún'),
                         ),
-                      ),
-                    ],
+                      );
+                    },
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.share, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text('Compartir', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

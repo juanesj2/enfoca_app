@@ -32,14 +32,14 @@ class _PhotoScreenState extends State<PhotoScreen> {
   void initState() {
     super.initState();
     // Al iniciar, buscamos quien es el usuario y cargamos los comentarios
-    _fetchCurrentUser();
-    _fetchComentarios();
+    _obtenerUsuarioActual();
+    _obtenerComentarios();
   }
 
   // ********** Metodos de API y Logica ********** //
 
   // Obtiene el usuario actual (Localmente o via API)
-  Future<void> _fetchCurrentUser() async {
+  Future<void> _obtenerUsuarioActual() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('userData')) return;
 
@@ -48,6 +48,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
     // 1. Intentamos obtener userId de SharedPreferences (optimizado)
     if (extractedUserData.containsKey('userId')) {
+      if (!mounted) return;
       setState(() {
         _currentUserId = extractedUserData['userId'];
       });
@@ -71,6 +72,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
         final userId =
             userData['data']['id']; // API devuelve { data: { id: ... } }
 
+        if (!mounted) return;
         setState(() {
           _currentUserId = userId;
         });
@@ -82,12 +84,12 @@ class _PhotoScreenState extends State<PhotoScreen> {
         await prefs.setString('userData', json.encode(extractedUserData));
       }
     } catch (e) {
-      print('Error fetching user fallback: $e');
+      print('Error obteniendo usuario fallback: $e');
     }
   }
 
   // Descarga los comentarios del servidor
-  Future<void> _fetchComentarios() async {
+  Future<void> _obtenerComentarios() async {
     final url = Uri.parse(
       'http://enfoca.alwaysdata.net/api/fotografias/${widget.photo.id}/comentarios',
     );
@@ -115,6 +117,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> comentariosList = data['data'];
+        if (!mounted) return;
         setState(() {
           _comentarios = comentariosList
               .map((json) => Comentario.fromJson(json))
@@ -136,7 +139,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
   }
 
   // Envia un nuevo comentario al servidor
-  Future<void> _submitComment() async {
+  Future<void> _enviarComentario() async {
     final enteredComment = _commentController.text;
 
     if (enteredComment.isEmpty) {
@@ -167,13 +170,14 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         _commentController.clear(); // Limpiamos el input
-        await _fetchComentarios(); // Recargar comentarios
-
+        if (!mounted) return;
+        await _obtenerComentarios(); // Recargar comentarios
+        if (!mounted) return; // Check again after await
         // Actualizar el contador global en el servicio (UI Pantalla principal)
         Provider.of<PhotoService>(
           context,
           listen: false,
-        ).notifyCommentAdded(widget.photo.id);
+        ).notificarComentarioAnadido(widget.photo.id);
       } else {
         // Manejar error
         ScaffoldMessenger.of(context).showSnackBar(
@@ -193,7 +197,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
   }
 
   // Elimina un comentario propio
-  Future<void> _deleteComment(int commentId) async {
+  Future<void> _eliminarComentario(int commentId) async {
     final url = Uri.parse(
       'http://enfoca.alwaysdata.net/api/comentarios/$commentId',
     );
@@ -213,6 +217,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        if (!mounted) return;
         setState(() {
           _comentarios.removeWhere((c) => c.id == commentId);
         });
@@ -226,7 +231,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
         Provider.of<PhotoService>(
           context,
           listen: false,
-        ).notifyCommentDeleted(widget.photo.id, userStillHasComments);
+        ).notificarComentarioEliminado(widget.photo.id, userStillHasComments);
 
         ScaffoldMessenger.of(
           context,
@@ -247,22 +252,21 @@ class _PhotoScreenState extends State<PhotoScreen> {
   @override
   Widget build(BuildContext context) {
     // Buscamos la foto más reciente en el servicio (para mantener likes sincronizados)
+    // Usamos el nuevo metodo obtenerFotoPorId que busca en todas las listas
     final photoService = Provider.of<PhotoService>(context);
-    final currentPhoto = photoService.items.firstWhere(
-      (element) => element.id == widget.photo.id,
-      orElse: () => widget.photo,
-    );
+    final currentPhoto =
+        photoService.obtenerFotoPorId(widget.photo.id) ?? widget.photo;
 
     return Scaffold(
       appBar: AppBar(title: Text(currentPhoto.titulo)),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ************** Aqui se carga la fotografia (Widget) ************** //
+            // ********** Aqui se carga la fotografia (Widget) ********** //
             PhotoItem(photo: currentPhoto, fueraFotografia: false),
-            // ******************* FIN carga de la fotografia ******************* //
+            // ********** FIN carga de la fotografia ********** //
 
-            // ******************* Carga de los Comentarios ******************* //
+            // ********** Carga de los Comentarios ********** //
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -291,7 +295,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: _submitComment, // Enviar comentario
+                        onPressed: _enviarComentario, // Enviar comentario
                         color: Theme.of(context).primaryColor,
                       ),
                     ],
@@ -314,9 +318,9 @@ class _PhotoScreenState extends State<PhotoScreen> {
                           itemBuilder: (ctx, index) {
                             return ComentarioItem(
                               comentario: _comentarios[index],
-                              currentUserId:
+                              idUsuarioActual:
                                   _currentUserId, // Pasamos el ID para saber si podemos borrar
-                              onDelete: () => _deleteComment(
+                              alBorrar: () => _eliminarComentario(
                                 _comentarios[index].id,
                               ), // Logica de borrado
                             );
@@ -326,7 +330,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
                 ],
               ),
             ),
-            // ****************** FIN General de Comentarios ***************** //
+            // ********** FIN General de Comentarios ********** //
           ],
         ),
       ),

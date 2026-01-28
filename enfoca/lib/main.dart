@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
           ),
           // Si estamos autenticados, iríamos a HomeScreen
           // Por ahora, si no estamos autenticados, vamos al Login
-          home: auth.isAuth ? HomeScreen() : LoginScreen(),
+          home: auth.estaAutenticado ? HomeScreen() : LoginScreen(),
           routes: {
             LoginScreen.routeName: (ctx) => LoginScreen(),
             RegisterScreen.routeName: (ctx) => RegisterScreen(),

@@ -9,12 +9,10 @@ class PerfilScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Obtenemos el usuario del AuthService
     // listen: true es el valor por defecto, así que se redibujará si cambia el usuario
-    final user = Provider.of<AuthService>(context).user;
+    final user = Provider.of<AuthService>(context).usuario;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Perfil'),
-      ),
+      appBar: AppBar(title: const Text('Mi Perfil')),
       body: user == null
           ? const Center(
               child: Text('No se ha encontrado información del usuario.'),
@@ -25,7 +23,7 @@ class PerfilScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 20),
-                  // Avatar (círculo con iniciales si no hay imagen, o icono por defecto)
+                  // ********** Avatar ********** //
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: Colors.blueAccent,
@@ -36,7 +34,7 @@ class PerfilScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Tarjeta con información del usuario
+                  // ********** Tarjeta de Información ********** //
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
@@ -81,7 +79,7 @@ class PerfilScreen extends StatelessWidget {
 
                   const Spacer(),
 
-                  // Botón grande de Cerrar Sesión
+                  // ********** Botón de Cerrar Sesión ********** //
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -103,7 +101,7 @@ class PerfilScreen extends StatelessWidget {
                         Provider.of<AuthService>(
                           context,
                           listen: false,
-                        ).logout();
+                        ).cerrarSesion();
                       },
                     ),
                   ),

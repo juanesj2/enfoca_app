@@ -13,10 +13,12 @@ class MapSelectionScreen extends StatefulWidget {
 }
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
+  // ********** Variables de Estado ********** //
   // Coordenadas seleccionadas por el usuario
   LatLng? _selectedLocation;
   // Controlador del mapa
   final MapController _mapController = MapController();
+  // ********** FIN Variables de Estado ********** //
 
   @override
   void initState() {
@@ -27,8 +29,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     }
   }
 
+  // ********** Métodos ********** //
   // Metodo para manejar el toque en el mapa
-  void _handleTap(TapPosition tapPosition, LatLng point) {
+  void _manejarToque(TapPosition tapPosition, LatLng point) {
     // Usamos Future.delayed para separar completamente la actualización del ciclo de eventos actual
     // Esto soluciona el crash de MouseTracker en Windows/Desktop mejor que addPostFrameCallback
     Future.delayed(const Duration(milliseconds: 50), () {
@@ -41,9 +44,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   }
 
   // Metodo para confirmar la seleccion y volver atras
-  void _confirmSelection() {
+  void _confirmarSeleccion() {
     Navigator.of(context).pop(_selectedLocation);
   }
+  // ********** FIN Métodos ********** //
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +61,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           IconButton(
             icon: const Icon(Icons.check),
             // Solo permite confirmar si hay una ubicacion seleccionada
-            onPressed: _selectedLocation == null ? null : _confirmSelection,
+            onPressed: _selectedLocation == null ? null : _confirmarSeleccion,
           ),
         ],
       ),
@@ -69,7 +73,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         options: MapOptions(
           initialCenter: _selectedLocation ?? defaultCenter,
           initialZoom: 13.0,
-          onTap: _handleTap,
+          onTap: _manejarToque,
         ),
         children: [
           // Capa de mapas (OpenStreetMap)
@@ -100,7 +104,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       floatingActionButton: _selectedLocation == null
           ? null
           : FloatingActionButton.extended(
-              onPressed: _confirmSelection,
+              onPressed: _confirmarSeleccion,
               label: const Text('Confirmar'),
               icon: const Icon(Icons.check),
               backgroundColor: Colors.deepPurple,

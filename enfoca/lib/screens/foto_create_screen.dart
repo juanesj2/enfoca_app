@@ -21,7 +21,7 @@ class FotoCreateScreen extends StatefulWidget {
 class _FotoCreateScreenState extends State<FotoCreateScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Form Values
+  // ********** Valores del Formulario ********** //
   String _titulo = '';
   String _descripcion = '';
   int? _iso;
@@ -29,18 +29,23 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
   double? _apertura;
   double? _latitud;
   double? _longitud;
+  // ********** FIN Valores del Formulario ********** //
 
-  // Image
+  // ********** Imagen ********** //
   File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
+  // ********** FIN Imagen ********** //
 
-  // State
+  // ********** Estado ********** //
   bool _isLoading = false;
   bool _isGettingLocation = false;
+  // ********** FIN Estado ********** //
 
-  // Controllers to update UI when values change programmatically
+  // ********** Controladores ********** //
+  // Controladores para actualizar la UI cuando los valores cambian programáticamente
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
+  // ********** FIN Controladores ********** //
 
   @override
   void dispose() {
@@ -49,11 +54,12 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  // ********** Selección de Imagen ********** //
+  Future<void> _seleccionarImagen(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 1920, // Optimization
+        maxWidth: 1920, // Optimización
         maxHeight: 1080,
         imageQuality: 85,
       );
@@ -70,13 +76,14 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  // ********** Geolocalización ********** //
+  Future<void> _obtenerUbicacionActual() async {
     setState(() {
       _isGettingLocation = true;
     });
 
     try {
-      // Check permissions
+      // Verificar permisos
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -120,7 +127,8 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  Future<void> _selectLocationOnMap() async {
+  // ********** Selección en Mapa ********** //
+  Future<void> _seleccionarUbicacionEnMapa() async {
     final result = await Navigator.of(context).push<LatLng>(
       MaterialPageRoute(
         builder: (ctx) =>
@@ -138,7 +146,8 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  Future<void> _submitForm() async {
+  // ********** Envío del Formulario ********** //
+  Future<void> _enviarFormulario() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -157,7 +166,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     });
 
     try {
-      await Provider.of<PhotoService>(context, listen: false).createPhoto(
+      await Provider.of<PhotoService>(context, listen: false).crearFoto(
         _pickedImage!,
         _titulo,
         _descripcion,
@@ -168,19 +177,19 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
         apertura: _apertura,
       );
 
-      // Navigate back or to home
-      // Using pushReplacementNamed to go to home and refresh could be an option,
-      // or just pop if it was pushed.
-      // Since it's a page in logic, let's reset or show success.
+      // Navegar atrás o al inicio
+      // Usar pushReplacementNamed para ir al inicio y refrescar podría ser una opción,
+      // o simplemente hacer pop si fue pusheado.
+      // Como es una página en lógica, vamos a resetear o mostrar éxito.
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('¡Foto subida con éxito!')));
 
-      // Notify parent to switch tab
+      // Notificar al padre para cambiar de pestaña
       if (widget.onPhotoUploaded != null) {
         widget.onPhotoUploaded!();
       }
-      // If used as a route elsewhere, we might want to pop, but for now it's embedded.
+      // Si se usa como ruta en otro lugar, podríamos querer hacer pop, pero por ahora está embebido.
       // Navigator.of(context).pop();
     } catch (error) {
       ScaffoldMessenger.of(
@@ -193,6 +202,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
+  // ********** Construcción de la UI ********** //
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,7 +216,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // --- Image Picker ---
+                    // ********** Selector de Imagen ********** //
                     GestureDetector(
                       onTap: () {
                         showModalBottomSheet(
@@ -219,7 +229,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                 title: const Text('Tomar Foto'),
                                 onTap: () {
                                   Navigator.pop(ctx);
-                                  _pickImage(ImageSource.camera);
+                                  _seleccionarImagen(ImageSource.camera);
                                 },
                               ),
                               ListTile(
@@ -227,7 +237,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                 title: const Text('Galería'),
                                 onTap: () {
                                   Navigator.pop(ctx);
-                                  _pickImage(ImageSource.gallery);
+                                  _seleccionarImagen(ImageSource.gallery);
                                 },
                               ),
                             ],
@@ -264,7 +274,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // --- Basic Info ---
+                    // ********** Información Básica ********** //
                     TextFormField(
                       decoration: const InputDecoration(labelText: 'Título'),
                       textInputAction: TextInputAction.next,
@@ -290,7 +300,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // --- texto ---
+                    // ********** Texto ********** //
                     const Text(
                       'Ubicacion (opcional)',
                       style: TextStyle(
@@ -299,7 +309,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                         color: Colors.deepPurple,
                       ),
                     ),
-                    // --- Location ---
+                    // ********** Ubicación ********** //
                     Row(
                       children: [
                         const Icon(Icons.location_on, color: Colors.grey),
@@ -325,12 +335,12 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                               TextButton.icon(
                                 icon: const Icon(Icons.my_location),
                                 label: const Text('Ubicación actual'),
-                                onPressed: _getCurrentLocation,
+                                onPressed: _obtenerUbicacionActual,
                               ),
                               TextButton.icon(
                                 icon: const Icon(Icons.map),
                                 label: const Text('Elige ubicación'),
-                                onPressed: _selectLocationOnMap,
+                                onPressed: _seleccionarUbicacionEnMapa,
                               ),
                             ],
                           ),
@@ -338,7 +348,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const Divider(),
 
-                    // --- texto ---
+                    // ********** Datos Técnicos ********** //
                     const Text(
                       'Datos Técnicos',
                       style: TextStyle(
@@ -413,14 +423,14 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
 
                     const SizedBox(height: 30),
 
-                    // --- Submit Button ---
+                    // ********** Botón de Envío ********** //
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
                       ),
-                      onPressed: _submitForm,
+                      onPressed: _enviarFormulario,
                       child: const Text(
                         'PUBLICAR FOTO',
                         style: TextStyle(fontSize: 16),
