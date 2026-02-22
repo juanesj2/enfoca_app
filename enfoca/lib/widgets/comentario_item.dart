@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import '../models/comentario.dart';
 
-class ComentarioItem extends StatelessWidget {
-  final Comentario comentario;
-  final int? idUsuarioActual; // ID del usuario actual para verificaciones
-  final VoidCallback? alBorrar; // Funcion callback para borrar el comentario
+// ==========================================
+// WIDGET: ITEM DE COMENTARIO
+// ==========================================
 
+class ComentarioItem extends StatelessWidget {
+  // ==========================================
+  // ATRIBUTOS
+  // ==========================================
+  final Comentario comentario;
+  final int?
+  idUsuarioActual; // ID del usuario actual para verificaciones (ej. borrar)
+  final VoidCallback? alBorrar; // Función callback para borrar el comentario
+
+  // ==========================================
+  // CONSTRUCTOR
+  // ==========================================
   const ComentarioItem({
     Key? key,
     required this.comentario,
@@ -13,6 +24,9 @@ class ComentarioItem extends StatelessWidget {
     this.alBorrar,
   }) : super(key: key);
 
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -24,7 +38,9 @@ class ComentarioItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ********** Cabecera del Comentario (Avatar, Nombre, Fecha, Borrar) ********** //
+            // ==========================================
+            // CABECERA DEL COMENTARIO
+            // ==========================================
             Row(
               children: [
                 // Avatar con inicial
@@ -56,33 +72,38 @@ class ComentarioItem extends StatelessWidget {
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
 
-                // ********** Boton de Borrar (Solo si es mi comentario) ********** //
+                // ==========================================
+                // BOTÓN DE BORRAR (SOLO SI ES MI COMENTARIO)
+                // ==========================================
                 if (idUsuarioActual != null &&
                     comentario.userId == idUsuarioActual)
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                     onPressed:
-                        alBorrar, // Ejecuta la funcion de borrado pasada por parametro
+                        alBorrar, // Ejecuta la función de borrado pasada por parámetro
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                // ********** FIN Boton de Borrar ********** //
               ],
             ),
 
-            // ********** FIN Cabecera del Comentario ********** //
             const SizedBox(height: 8),
 
-            // ********** Contenido del Comentario ********** //
+            // ==========================================
+            // CONTENIDO DEL COMENTARIO
+            // ==========================================
             Text(comentario.contenido, style: const TextStyle(fontSize: 14)),
-            // ********** FIN Contenido del Comentario ********** //
           ],
         ),
       ),
     );
   }
 
-  // Metodo auxiliar para formatear la fecha a DD/MM/AAAA
+  // ==========================================
+  // MÉTODOS AUXILIARES
+  // ==========================================
+
+  // Método auxiliar para formatear la fecha a DD/MM/AAAA
   String _formatearFecha(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }

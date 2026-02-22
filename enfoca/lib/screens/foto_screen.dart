@@ -10,6 +10,10 @@ import '../widgets/photo_item.dart';
 import '../widgets/comentario_item.dart';
 import '../services/photo_service.dart';
 
+// ==========================================
+// PANTALLA DE DETALLE DE FOTO
+// ==========================================
+
 class PhotoScreen extends StatefulWidget {
   final Fotografia photo;
 
@@ -20,25 +24,32 @@ class PhotoScreen extends StatefulWidget {
 }
 
 class _PhotoScreenState extends State<PhotoScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   List<Comentario> _comentarios = []; // Lista local de comentarios
   bool _isLoading = true; // Variable para mostrar el spinner de carga
   int? _currentUserId; // Para saber quién es el usuario actual
   final _commentController =
       TextEditingController(); // Controlador para el input de texto
-  // ********** FIN Variables de Estado ********** //
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void initState() {
     super.initState();
-    // Al iniciar, buscamos quien es el usuario y cargamos los comentarios
+    // Al iniciar, buscamos quién es el usuario y cargamos los comentarios
     _obtenerUsuarioActual();
     _obtenerComentarios();
   }
 
-  // ********** Metodos de API y Logica ********** //
+  // ==========================================
+  // MÉTODOS DE API Y LÓGICA
+  // ==========================================
 
-  // Obtiene el usuario actual (Localmente o via API)
+  // Obtiene el usuario actual (Localmente o vía API)
   Future<void> _obtenerUsuarioActual() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('userData')) return;
@@ -84,7 +95,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
         await prefs.setString('userData', json.encode(extractedUserData));
       }
     } catch (e) {
-      print('Error obteniendo usuario fallback: $e');
+      debugPrint('Error obteniendo usuario fallback: $e');
     }
   }
 
@@ -125,20 +136,23 @@ class _PhotoScreenState extends State<PhotoScreen> {
           _isLoading = false;
         });
       } else {
-        // Manejar error
+        // Manejar error silenciosamente o mostrar UI de error local
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (error) {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-    } catch (error) {
-      // Manejar error
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  // Envia un nuevo comentario al servidor
+  // Envía un nuevo comentario al servidor
   Future<void> _enviarComentario() async {
     final enteredComment = _commentController.text;
 
@@ -172,14 +186,15 @@ class _PhotoScreenState extends State<PhotoScreen> {
         _commentController.clear(); // Limpiamos el input
         if (!mounted) return;
         await _obtenerComentarios(); // Recargar comentarios
-        if (!mounted) return; // Check again after await
+        if (!mounted) return;
+
         // Actualizar el contador global en el servicio (UI Pantalla principal)
         Provider.of<PhotoService>(
           context,
           listen: false,
         ).notificarComentarioAnadido(widget.photo.id);
       } else {
-        // Manejar error
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -189,7 +204,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
         );
       }
     } catch (error) {
-      // Manejar error
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error de red al enviar comentario.')),
       );
@@ -237,41 +252,124 @@ class _PhotoScreenState extends State<PhotoScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text('Comentario eliminado')));
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al eliminar: ${response.statusCode}')),
         );
       }
     } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error de red al eliminar.')),
       );
     }
   }
-  // ********** FIN Metodos de API y Logica ********** //
+
+  // Mostrar diálogo para reportar la fotografía
+  void _mostrarDialogoReporte() {
+    String motivoSeleccionado = '';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reportar Fotografía'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '¿Por qué quieres reportar esta foto? Un administrador revisará tu petición.',
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Motivo del reporte',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (val) {
+                motivoSeleccionado = val;
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              if (motivoSeleccionado.trim().isEmpty) return;
+              Navigator.of(ctx).pop();
+              if (!mounted) return;
+
+              try {
+                await Provider.of<PhotoService>(
+                  context,
+                  listen: false,
+                ).reportarFoto(widget.photo.id, motivoSeleccionado.trim());
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Reporte enviado correctamente. Gracias.'),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error al enviar reporte: $e')),
+                );
+              }
+            },
+            child: const Text(
+              'Enviar Reporte',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {
     // Buscamos la foto más reciente en el servicio (para mantener likes sincronizados)
-    // Usamos el nuevo metodo obtenerFotoPorId que busca en todas las listas
+    // Usamos el nuevo método obtenerFotoPorId que busca en todas las listas
     final photoService = Provider.of<PhotoService>(context);
     final currentPhoto =
         photoService.obtenerFotoPorId(widget.photo.id) ?? widget.photo;
 
     return Scaffold(
-      appBar: AppBar(title: Text(currentPhoto.titulo)),
+      appBar: AppBar(
+        title: Text(currentPhoto.titulo),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.report_problem),
+            tooltip: 'Reportar foto',
+            onPressed: _mostrarDialogoReporte,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ********** Aqui se carga la fotografia (Widget) ********** //
+            // ==========================================
+            // CARGA DE FOTOGRAFÍA (WIDGET COMPARTIDO)
+            // ==========================================
             PhotoItem(photo: currentPhoto, fueraFotografia: false),
-            // ********** FIN carga de la fotografia ********** //
 
-            // ********** Carga de los Comentarios ********** //
+            // ==========================================
+            // SECCIÓN DE COMENTARIOS
+            // ==========================================
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment
-                    .start, // Definimos donde empiezan los comentarios
+                    .start, // Definimos dónde empiezan los comentarios
                 children: [
                   const SizedBox(height: 20),
                   // Texto inicial
@@ -281,7 +379,9 @@ class _PhotoScreenState extends State<PhotoScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // ********** Input de Comentarios ********** //
+                  // ==========================================
+                  // INPUT DE COMENTARIOS
+                  // ==========================================
                   Row(
                     children: [
                       Expanded(
@@ -301,16 +401,17 @@ class _PhotoScreenState extends State<PhotoScreen> {
                     ],
                   ),
 
-                  // ********** FIN Input de Comentarios ********** //
                   const SizedBox(height: 20),
 
-                  // ********** Lista de Comentarios ********** //
+                  // ==========================================
+                  // LISTA DE COMENTARIOS
+                  // ==========================================
                   _isLoading
                       ? const Center(
                           child: CircularProgressIndicator(),
                         ) // Comprobamos si hay comentarios
                       : _comentarios.isEmpty
-                      ? const Text("No hay comentarios aún, se el primero.")
+                      ? const Text("No hay comentarios aún, sé el primero.")
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -322,15 +423,13 @@ class _PhotoScreenState extends State<PhotoScreen> {
                                   _currentUserId, // Pasamos el ID para saber si podemos borrar
                               alBorrar: () => _eliminarComentario(
                                 _comentarios[index].id,
-                              ), // Logica de borrado
+                              ), // Lógica de borrado
                             );
                           },
                         ),
-                  // ********** FIN Lista de Comentarios ********** //
                 ],
               ),
             ),
-            // ********** FIN General de Comentarios ********** //
           ],
         ),
       ),

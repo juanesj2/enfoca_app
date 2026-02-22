@@ -8,6 +8,10 @@ import 'package:latlong2/latlong.dart';
 import '../services/photo_service.dart';
 import 'map_selection_screen.dart';
 
+// ==========================================
+// PANTALLA DE CREAR FOTO
+// ==========================================
+
 class FotoCreateScreen extends StatefulWidget {
   static const routeName = '/foto-create';
   final VoidCallback? onPhotoUploaded;
@@ -21,7 +25,11 @@ class FotoCreateScreen extends StatefulWidget {
 class _FotoCreateScreenState extends State<FotoCreateScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // ********** Valores del Formulario ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
+
+  // Valores del Formulario
   String _titulo = '';
   String _descripcion = '';
   int? _iso;
@@ -29,23 +37,23 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
   double? _apertura;
   double? _latitud;
   double? _longitud;
-  // ********** FIN Valores del Formulario ********** //
 
-  // ********** Imagen ********** //
+  // Imagen
   File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
-  // ********** FIN Imagen ********** //
 
-  // ********** Estado ********** //
+  // Variables de Control
   bool _isLoading = false;
   bool _isGettingLocation = false;
-  // ********** FIN Estado ********** //
 
-  // ********** Controladores ********** //
+  // Controladores
   // Controladores para actualizar la UI cuando los valores cambian programáticamente
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
-  // ********** FIN Controladores ********** //
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void dispose() {
@@ -54,7 +62,11 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     super.dispose();
   }
 
-  // ********** Selección de Imagen ********** //
+  // ==========================================
+  // LÓGICA DE NEGOCIO
+  // ==========================================
+
+  // Selección de Imagen desde Cámara o Galería
   Future<void> _seleccionarImagen(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -76,7 +88,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  // ********** Geolocalización ********** //
+  // Obtener Ubicación GPS Actual
   Future<void> _obtenerUbicacionActual() async {
     setState(() {
       _isGettingLocation = true;
@@ -127,7 +139,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  // ********** Selección en Mapa ********** //
+  // Selección en Mapa Interactivo
   Future<void> _seleccionarUbicacionEnMapa() async {
     final result = await Navigator.of(context).push<LatLng>(
       MaterialPageRoute(
@@ -146,7 +158,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  // ********** Envío del Formulario ********** //
+  // Envío del Formulario
   Future<void> _enviarFormulario() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -178,8 +190,6 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
       );
 
       // Navegar atrás o al inicio
-      // Usar pushReplacementNamed para ir al inicio y refrescar podría ser una opción,
-      // o simplemente hacer pop si fue pusheado.
       // Como es una página en lógica, vamos a resetear o mostrar éxito.
       ScaffoldMessenger.of(
         context,
@@ -202,7 +212,10 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  // ********** Construcción de la UI ********** //
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,7 +229,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ********** Selector de Imagen ********** //
+                    // ==========================================
+                    // SELECTOR DE IMAGEN
+                    // ==========================================
                     GestureDetector(
                       onTap: () {
                         showModalBottomSheet(
@@ -257,6 +272,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                 _pickedImage!,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
+                                height: double.infinity,
                               )
                             : const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -274,7 +290,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ********** Información Básica ********** //
+                    // ==========================================
+                    // INFORMACIÓN BÁSICA (TÍTULO Y DESCRIPCIÓN)
+                    // ==========================================
                     TextFormField(
                       decoration: const InputDecoration(labelText: 'Título'),
                       textInputAction: TextInputAction.next,
@@ -300,16 +318,17 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ********** Texto ********** //
+                    // ==========================================
+                    // UBICACIÓN (GPS / MAPA)
+                    // ==========================================
                     const Text(
-                      'Ubicacion (opcional)',
+                      'Ubicación (opcional)',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
                     ),
-                    // ********** Ubicación ********** //
                     Row(
                       children: [
                         const Icon(Icons.location_on, color: Colors.grey),
@@ -348,7 +367,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const Divider(),
 
-                    // ********** Datos Técnicos ********** //
+                    // ==========================================
+                    // DATOS TÉCNICOS (ISO, APERTURA, VELOCIDAD)
+                    // ==========================================
                     const Text(
                       'Datos Técnicos',
                       style: TextStyle(
@@ -382,7 +403,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Requerido'; // El backend lo exige
+                                return 'Requerido'; // El backend lo exige muchas veces
                               }
                               // Sanitizamos: quitamos 'f', '/', espacios y cambiamos coma por punto
                               final sanitized = value
@@ -423,7 +444,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
 
                     const SizedBox(height: 30),
 
-                    // ********** Botón de Envío ********** //
+                    // ==========================================
+                    // BOTÓN DE ENVÍO
+                    // ==========================================
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),

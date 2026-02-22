@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 
-// LoginScreen es un StatefulWidget porque necesita mantener "estado" (memoria).
+// ==========================================
+// PANTALLA DE LOGIN
+// ==========================================
+
 class LoginScreen extends StatefulWidget {
-  // Constante para la ruta de navegacion
+  // Constante para la ruta de navegación
   static const routeName = '/login';
 
   @override
@@ -12,7 +15,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   final _formKey = GlobalKey<FormState>(); // Clave para validar el formulario
 
   // Controladores de texto para leer los inputs
@@ -20,9 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   var _isLoading = false; // Controla el spinner de carga
-  // ********** FIN Variables de Estado ********** //
 
-  // ********** Logica de Login ********** //
+  // ==========================================
+  // LÓGICA DE NEGOCIO
+  // ==========================================
+
   Future<void> _iniciarSesion() async {
     // 1. Validamos el formulario (revisa los validators de los TextFormFields)
     if (!_formKey.currentState!.validate()) {
@@ -48,12 +55,17 @@ class _LoginScreenState extends State<LoginScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('Error'),
-          // Limpiamos el mensaje de excepcion para que sea mas amigable
-          content: Text(error.toString().replaceAll('Exception: ', '')),
+          title: const Text('Error'),
+          // Limpiamos el mensaje de excepción para que sea más amigable
+          content: Text(
+            error
+                .toString()
+                .replaceAll('Exception: ', '')
+                .replaceAll('Exception', ''),
+          ),
           actions: <Widget>[
             TextButton(
-              child: Text('Ok'),
+              child: const Text('Aceptar'),
               onPressed: () {
                 Navigator.of(ctx).pop(); // Cerramos el diálogo
               },
@@ -67,17 +79,22 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
   }
-  // ********** FIN Logica de Login ********** //
 
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // El cuerpo se extiende detras del AppBar
-      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true, // El cuerpo se extiende detrás del AppBar
+      backgroundColor:
+          Colors.transparent, // Opcional, si hubiera imagen de fondo
 
-      appBar: AppBar(title: Text('Login')),
+      appBar: AppBar(title: const Text('Iniciar Sesión')),
 
-      // ********** Cuerpo del Formulario ********** //
+      // ==========================================
+      // CUERPO DEL FORMULARIO
+      // ==========================================
       body: Center(
         child: SingleChildScrollView(
           child: Card(
@@ -89,22 +106,30 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Form(
-                key: _formKey, // Conectamos la validacion
+                key: _formKey, // Conectamos la validación
                 child: Column(
                   mainAxisSize:
                       MainAxisSize.min, // Ocupa solo el espacio necesario
                   children: [
-                    // ********** Logo ********** //
+                    // ==========================================
+                    // LOGO
+                    // ==========================================
                     Image.network(
                       'https://raw.githubusercontent.com/juanesj2/Enfoca_ProyectoFinal/refs/heads/main/public/imagenes/logo_ENFOKA-sin-fondo.png',
                       height: 250,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image_not_supported, size: 100),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                    // ********** Input Email ********** //
+                    // ==========================================
+                    // INPUT EMAIL
+                    // ==========================================
                     TextFormField(
                       controller: _emailController,
-                      decoration: InputDecoration(labelText: 'Email'),
+                      decoration: const InputDecoration(
+                        labelText: 'Correo Electrónico',
+                      ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value!.isEmpty || !value.contains('@')) {
@@ -114,10 +139,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    // ********** Input Contraseña ********** //
+                    // ==========================================
+                    // INPUT CONTRASEÑA
+                    // ==========================================
                     TextFormField(
                       controller: _passwordController,
-                      decoration: InputDecoration(labelText: 'Contraseña'),
+                      decoration: const InputDecoration(
+                        labelText: 'Contraseña',
+                      ),
                       obscureText: true, // Oculta el texto
                       validator: (value) {
                         if (value!.isEmpty || value.length < 5) {
@@ -126,21 +155,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                    // ********** Botón de Acción ********** //
+                    // ==========================================
+                    // BOTÓN DE ACCIÓN
+                    // ==========================================
                     if (_isLoading)
-                      CircularProgressIndicator()
+                      const CircularProgressIndicator()
                     else
                       ElevatedButton(
-                        child: Text('Entrar'),
                         onPressed: _iniciarSesion,
+                        child: const Text('Entrar'),
                       ),
 
-                    // ********** Enlace a Registro ********** //
-                    SizedBox(height: 10),
+                    // ==========================================
+                    // ENLACE A REGISTRO
+                    // ==========================================
+                    const SizedBox(height: 10),
                     TextButton(
-                      child: Text('¿No tienes cuenta? Regístrate'),
+                      child: const Text('¿No tienes cuenta? Regístrate'),
                       onPressed: () {
                         // Navegamos a la pantalla de registro
                         Navigator.of(context).pushNamed('/register');
@@ -153,7 +186,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-      // ********** FIN Cuerpo ********** //
     );
   }
 }

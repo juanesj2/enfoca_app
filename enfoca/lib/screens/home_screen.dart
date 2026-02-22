@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/photo_service.dart';
+import '../services/theme_service.dart';
 
 import '../widgets/photo_item.dart';
 import 'foto_create_screen.dart';
 import 'fotos_usuario_screen.dart'; // Importamos la pantalla de Mis Fotos
 import 'perfil_screen.dart'; // Importamos la pantalla de Perfil
+
+// ==========================================
+// PANTALLA PRINCIPAL (HOME / FEED)
+// ==========================================
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -13,7 +18,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   var _isInit = true; // Controla si es la primera carga para inicializar datos
   var _isLoading = false; // Controla el spinner de carga
   int _selectedIndex = 0; // Índice de la página actual
@@ -24,7 +31,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Variable para controlar PopScope
   bool _canPopNow = false;
-  // ********** FIN Variables de Estado ********** //
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void didChangeDependencies() {
@@ -44,12 +54,19 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {
               _isLoading = false;
             });
-            // Manejar error (mostrar alerta, etc.)
+            // Manejar error (mostrar alerta, etc. si fuera necesario)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error al cargar fotos')),
+            );
           });
     }
     _isInit = false;
     super.didChangeDependencies();
   }
+
+  // ==========================================
+  // MÉTODOS DE CONTROL
+  // ==========================================
 
   // Método para cambiar de página desde la barra de navegación
   void _alTocarItem(int index) {
@@ -61,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Método para construir la pantalla correspondiente según el índice
   Widget _construirPagina() {
     switch (_selectedIndex) {
-      case 0: // Inicio (Explorar)
+      case 0: // Inicio (Explorar / Feed)
         // Usamos un Navigator anidado para que al entrar en el detalle se mantenga el BottomBar
         return Navigator(
           key: _feedNavigatorKey,
@@ -72,6 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Consumer<PhotoService>(
                   builder: (ctx, photoService, _) {
                     final photos = photoService.items;
+                    if (photos.isEmpty) {
+                      return const Center(
+                        child: Text('No hay fotos disponibles'),
+                      );
+                    }
                     return RefreshIndicator(
                       onRefresh: () => Provider.of<PhotoService>(
                         ctx,
@@ -109,6 +131,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -139,9 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       },
       child: Scaffold(
-        // ********** AppBar Superior ********** //
+        // ==========================================
+        // APPBAR SUPERIOR
+        // ==========================================
         appBar: AppBar(
-          // Logo y titulo de la app
+          // Logo y título de la app
           title: Row(
             children: [
               Image.asset('assets/images/logo.ico', height: 40),
@@ -149,16 +177,48 @@ class _HomeScreenState extends State<HomeScreen> {
               const Text('Enfoca'),
             ],
           ),
+          // ==========================================
+          // ACCIONES DE LA APPBAR (DERECHA)
+          // ==========================================
+          actions: [
+            // Usamos Consumer para escuchar reactivamente al ThemeService.
+            // Cuando el estado de isDarkMode cambia, solo este widget (el Icono) se redibuja.
+            Consumer<ThemeService>(
+              builder: (context, themeService, child) {
+                return IconButton(
+                  // Alternamos el icono dinámicamente:
+                  // Si está en Modo Oscuro, mostramos un Sol (para volver a claro).
+                  // Si está en Modo Claro, mostramos una Luna (para ir al oscuro).
+                  icon: Icon(
+                    themeService.isDarkMode
+                        ? Icons.light_mode
+                        : Icons.dark_mode,
+                  ),
+                  // Al presionar el botón, ejecutamos el método toggleTheme del ThemeService
+                  // que invertirá el valor y notificará a toda la App.
+                  onPressed: () {
+                    themeService.toggleTheme();
+                  },
+                  // Texto emergente al mantener presionado (Accesibilidad)
+                  tooltip: themeService.isDarkMode
+                      ? 'Cambiar a Modo Claro'
+                      : 'Cambiar a Modo Oscuro',
+                );
+              },
+            ),
+          ],
         ),
-        // ********** FIN AppBar ********** //
 
-        // ********** Cuerpo Dinámico ********** //
+        // ==========================================
+        // CUERPO DINÁMICO
+        // ==========================================
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _construirPagina(),
-        // ********** FIN Cuerpo ********** //
 
-        // ********** Botón Flotante (FAB) - CREAR ********** //
+        // ==========================================
+        // BOTÓN FLOTANTE (FAB) - CREAR
+        // ==========================================
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             // Acción del botón Crear
@@ -173,9 +233,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         floatingActionButtonLocation:
             const CustomFloatingActionButtonLocation(),
-        // ********** FIN Botón Flotante ********** //
 
-        // ********** Barra de Navegación Inferior (BottomAppBar) ********** //
+        // ==========================================
+        // BARRA DE NAVEGACIÓN INFERIOR (BOTTOM APP BAR)
+        // ==========================================
         bottomNavigationBar: BottomAppBar(
           shape:
               const CircularNotchedRectangle(), // Recorte circular para el FAB
@@ -225,11 +286,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        // ********** FIN Barra de Navegación ********** //
       ),
     );
   }
 }
+
+// ==========================================
+// CLASE AUXILIAR: UBICACIÓN DEL FAB
+// ==========================================
 
 // Clase personalizada para bajar un poco el botón flotante
 class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {

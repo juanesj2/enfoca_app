@@ -1,28 +1,51 @@
+// ==========================================
+// MODELO DE DATOS: FOTOGRAFÍA
+// ==========================================
+
 class Fotografia {
-  // ********** Atributos de la Fotografia ********** //
-  final int id;
-  final String titulo;
-  final String descripcion;
-  final String direccionImagen;
-  final int likesCount;
-  final int comentariosCount;
+  // ==========================================
+  // ATRIBUTOS PRINCIPALES
+  // ==========================================
 
-  // Datos Tecnicos
-  final int? iso;
-  final String? velocidadObturacion;
-  final double? apertura;
+  final int id; // Identificador único de la foto
+  final String titulo; // Título de la foto
+  final String descripcion; // Descripción detallada
+  final String direccionImagen; // URL completa de la imagen
+  final int likesCount; // Contador total de likes
+  final int comentariosCount; // Contador total de comentarios
 
-  // Ubicacion
-  final double? latitud;
-  final double? longitud;
+  // ==========================================
+  // DATOS TÉCNICOS (METADATOS EXIF)
+  // ==========================================
 
-  // Datos del Usuario que subio la foto
-  final String userName;
+  final int? iso; // Sensibilidad ISO
+  final String? velocidadObturacion; // Velocidad de obturación (ej. 1/100)
+  final double? apertura; // Apertura del diafragma (f/)
 
-  // Estado de interactividad del usuario actual
-  final bool likedByUser; // Si yo le di like
-  final bool comentadoPorUsuario; // Si yo he comentado esta foto
-  // ********** FIN Atributos ********** //
+  // ==========================================
+  // UBICACIÓN (GEOLOCALIZACIÓN)
+  // ==========================================
+
+  final double? latitud; // Coordenada: Latitud
+  final double? longitud; // Coordenada: Longitud
+
+  // ==========================================
+  // INFORMACIÓN DEL AUTOR
+  // ==========================================
+
+  final String userName; // Nombre del usuario que subió la foto
+
+  // ==========================================
+  // ESTADO DE INTERACCIÓN (USUARIO ACTUAL)
+  // ==========================================
+
+  final bool likedByUser; // Indica si el usuario actual le ha dado like
+  final bool comentadoPorUsuario; // Indica si el usuario actual ha comentado
+  final bool vetada; // Indica si la foto está vetada por un administrador
+
+  // ==========================================
+  // CONSTRUCTOR
+  // ==========================================
 
   Fotografia({
     required this.id,
@@ -39,46 +62,55 @@ class Fotografia {
     required this.userName,
     required this.likedByUser,
     required this.comentadoPorUsuario,
+    this.vetada = false,
   });
 
-  // ********** Transformaciones JSON ********** //
+  // ==========================================
+  // TRANSFORMACIONES JSON (SERIALIZACIÓN)
+  // ==========================================
 
-  // Factory para crear una Fotografia desde el JSON de la API
+  // Factory para crear una instancia de Fotografía desde el JSON recibido de la API
   factory Fotografia.fromJson(Map<String, dynamic> json) {
     return Fotografia(
       id: json['id'],
       titulo: json['titulo'],
-      descripcion: json['descripcion'] ?? '', // Puede venir nulo
-      // Construimos la URL manualmente ya que la URL nativa de la API parece estar incompleta/errónea
+      descripcion:
+          json['descripcion'] ?? '', // Manejo de nulos para descripción
+      // Construimos la URL manualmente ya que la URL nativa de la API puede venir incompleta
       direccionImagen:
           'http://enfoca.alwaysdata.net/images/${json['direccion_imagen']}',
       likesCount: json['likes_count'],
       comentariosCount: json['comentarios_count'],
       iso: json['ISO'],
       velocidadObturacion: json['velocidad_obturacion'],
+      // Conversión segura a double para apertura
       apertura: json['apertura'] != null
           ? double.tryParse(json['apertura'].toString())
           : null,
+      // Conversión segura a double para latitud
       latitud: json['latitud'] != null
           ? double.tryParse(json['latitud'].toString())
           : null,
+      // Conversión segura a double para longitud
       longitud: json['longitud'] != null
           ? double.tryParse(json['longitud'].toString())
           : null,
+      // Extracción segura del nombre de usuario
       userName: (json['user'] != null && json['user']['name'] != null)
           ? json['user']['name']
-          : 'Usuario', // Manejo seguro si no viene el usuario
+          : 'Usuario',
       likedByUser: json['likedByUser'] ?? false,
       comentadoPorUsuario: json['comentadoPorUsuario'] ?? false,
+      vetada: json['vetada'] == 1 || json['vetada'] == true,
     );
   }
 
-  // ********** FIN Transformaciones JSON ********** //
+  // ==========================================
+  // MÉTODOS DE UTILIDAD (COPIA INMUTABLE)
+  // ==========================================
 
-  // ********** Utiles ********** //
-
-  // Metodo para copiar la instancia con algunos valores cambiados (Inmutabilidad)
-  // Util para actualizar contadores o estados sin recargar toda la foto
+  // Método para crear una copia de la instancia con algunos valores modificados.
+  // Es muy útil para actualizar el estado (ej. al dar like) sin mutar el objeto original.
   Fotografia copyWith({
     int? id,
     String? titulo,
@@ -93,7 +125,8 @@ class Fotografia {
     double? longitud,
     String? userName,
     bool? likedByUser,
-    bool? comentadoPorUsuario, // Añadimos el argumento opcional
+    bool? comentadoPorUsuario, // Argumento opcional para estado de comentario
+    bool? vetada,
   }) {
     return Fotografia(
       id: id ?? this.id,
@@ -110,8 +143,7 @@ class Fotografia {
       userName: userName ?? this.userName,
       likedByUser: likedByUser ?? this.likedByUser,
       comentadoPorUsuario: comentadoPorUsuario ?? this.comentadoPorUsuario,
+      vetada: vetada ?? this.vetada,
     );
   }
-
-  // ********** FIN Utiles ********** //
 }

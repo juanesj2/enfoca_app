@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import '../services/photo_service.dart';
 import '../widgets/photo_item.dart';
 
+// ==========================================
+// PANTALLA DE MIS FOTOS (VERSION SIMPLIFICADA)
+// ==========================================
+
 class MisFotosScreen extends StatefulWidget {
   const MisFotosScreen({super.key});
 
@@ -11,38 +15,52 @@ class MisFotosScreen extends StatefulWidget {
 }
 
 class _MisFotosScreenState extends State<MisFotosScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   var _isInit = true; // Controla carga inicial
   var _isLoading = false; // Controla spinner
-  // ********** FIN Variables de Estado ********** //
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void didChangeDependencies() {
     if (_isInit) {
+      // Evitamos llamar a setState si no está montado, pero didChangeDependencies es seguro para iniciar cargas
       setState(() {
         _isLoading = true;
       });
-      // Llamamos al nuevo método fetchMisFotos
+      // Llamamos al método obtenerMisFotos del servicio
       Provider.of<PhotoService>(context)
           .obtenerMisFotos()
           .then((_) {
-            setState(() {
-              _isLoading = false;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
           })
           .catchError((error) {
-            setState(() {
-              _isLoading = false;
-            });
-            // Manejo básico de errores
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error al cargar mis fotos')),
-            );
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              // Manejo básico de errores
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Error al cargar mis fotos')),
+              );
+            }
           });
     }
     _isInit = false;
     super.didChangeDependencies();
   }
+
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {

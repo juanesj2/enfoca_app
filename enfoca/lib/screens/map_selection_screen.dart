@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+// ==========================================
+// PANTALLA DE SELECCIÓN EN MAPA
+// ==========================================
+
 class MapSelectionScreen extends StatefulWidget {
   final double? initialLat;
   final double? initialLng;
@@ -13,24 +17,32 @@ class MapSelectionScreen extends StatefulWidget {
 }
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   // Coordenadas seleccionadas por el usuario
   LatLng? _selectedLocation;
   // Controlador del mapa
   final MapController _mapController = MapController();
-  // ********** FIN Variables de Estado ********** //
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void initState() {
     super.initState();
-    // Si ya habia una posicion seleccionada previamente, la cargamos
+    // Si ya había una posición seleccionada previamente, la cargamos
     if (widget.initialLat != null && widget.initialLng != null) {
       _selectedLocation = LatLng(widget.initialLat!, widget.initialLng!);
     }
   }
 
-  // ********** Métodos ********** //
-  // Metodo para manejar el toque en el mapa
+  // ==========================================
+  // MÉTODOS
+  // ==========================================
+
+  // Método para manejar el toque en el mapa
   void _manejarToque(TapPosition tapPosition, LatLng point) {
     // Usamos Future.delayed para separar completamente la actualización del ciclo de eventos actual
     // Esto soluciona el crash de MouseTracker en Windows/Desktop mejor que addPostFrameCallback
@@ -43,31 +55,37 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     });
   }
 
-  // Metodo para confirmar la seleccion y volver atras
+  // Método para confirmar la selección y volver atrás
   void _confirmarSeleccion() {
     Navigator.of(context).pop(_selectedLocation);
   }
-  // ********** FIN Métodos ********** //
+
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {
     final defaultCenter = const LatLng(40.416775, -3.703790); // Madrid
 
     return Scaffold(
-      // ********** Barra Superior (AppBar) ********** //
+      // ==========================================
+      // BARRA SUPERIOR (APPBAR)
+      // ==========================================
       appBar: AppBar(
         title: const Text('Elige una ubicación'),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            // Solo permite confirmar si hay una ubicacion seleccionada
+            // Solo permite confirmar si hay una ubicación seleccionada
             onPressed: _selectedLocation == null ? null : _confirmarSeleccion,
           ),
         ],
       ),
-      // ********** FIN Barra Superior ********** //
 
-      // ********** Cuerpo del Mapa ********** //
+      // ==========================================
+      // CUERPO DEL MAPA
+      // ==========================================
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
@@ -92,25 +110,33 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 height: 80,
                 child: _selectedLocation != null
                     ? const Icon(Icons.location_on, color: Colors.red, size: 40)
-                    : const SizedBox.shrink(), // Invisible
+                    : const Opacity(
+                        opacity: 0.0,
+                        child: Icon(Icons.location_on, size: 40),
+                      ), // Estabiliza el MouseTracker en escritorio
               ),
             ],
           ),
         ],
       ),
-      // ********** FIN Cuerpo del Mapa ********** //
 
-      // ********** Boton Flotante de Confirmacion ********** //
-      floatingActionButton: _selectedLocation == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _confirmarSeleccion,
-              label: const Text('Confirmar'),
-              icon: const Icon(Icons.check),
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-            ),
-      // ********** FIN Boton Flotante ********** //
+      // ==========================================
+      // BOTÓN FLOTANTE DE CONFIRMACIÓN
+      // ==========================================
+      floatingActionButton: IgnorePointer(
+        ignoring: _selectedLocation == null,
+        child: AnimatedOpacity(
+          opacity: _selectedLocation == null ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: FloatingActionButton.extended(
+            onPressed: _selectedLocation == null ? null : _confirmarSeleccion,
+            label: const Text('Confirmar'),
+            icon: const Icon(Icons.check),
+            backgroundColor: Colors.deepPurple,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 }

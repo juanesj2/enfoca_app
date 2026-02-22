@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import '../services/photo_service.dart';
 import '../widgets/photo_item.dart';
 
+// ==========================================
+// PANTALLA DE FOTOS DE USUARIO (BÚSQUEDA Y MIS FOTOS)
+// ==========================================
+
 class FotosUsuarioScreen extends StatefulWidget {
   final bool isSearchMode; // Indica si estamos en modo buscador
 
@@ -14,13 +18,19 @@ class FotosUsuarioScreen extends StatefulWidget {
 }
 
 class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   var _isInit = true; // Controla carga inicial
   var _isLoading = false; // Controla spinner general
-  var _isSearching = false; // Controla spinner especifico de busqueda
+  var _isSearching = false; // Controla spinner específico de búsqueda
+  String _tipoBusqueda = 'usuario'; // Tipo de búsqueda seleccionado
   final _searchController =
-      TextEditingController(); // Controlador del input de busqueda
-  // ********** FIN Variables de Estado ********** //
+      TextEditingController(); // Controlador del input de búsqueda
+
+  // ==========================================
+  // CICLO DE VIDA
+  // ==========================================
 
   @override
   void didChangeDependencies() {
@@ -33,17 +43,21 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
         Provider.of<PhotoService>(context)
             .obtenerMisFotos()
             .then((_) {
-              setState(() {
-                _isLoading = false;
-              });
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
             })
             .catchError((error) {
-              setState(() {
-                _isLoading = false;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Error al cargar mis fotos')),
-              );
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Error al cargar mis fotos')),
+                );
+              }
             });
       }
     }
@@ -51,8 +65,12 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
     super.didChangeDependencies();
   }
 
-  // Método para buscar fotos de un usuario
-  Future<void> _buscarUsuario() async {
+  // ==========================================
+  // MÉTODOS DE BÚSQUEDA
+  // ==========================================
+
+  // Método para buscar fotos
+  Future<void> _realizarBusqueda() async {
     final input = _searchController.text.trim();
     if (input.isEmpty) return;
 
@@ -60,64 +78,61 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
       _isSearching = true;
     });
 
-    int? userId;
+    try {
+      if (_tipoBusqueda == 'usuario') {
+        int? userId;
+        String? userName;
 
-    // Intentamos ver si es un número (ID directo)
-    if (RegExp(r'^[0-9]+$').hasMatch(input)) {
-      userId = int.tryParse(input);
-    } else {
-      // Si no es numero, buscamos por nombre
-      try {
-        userId = await Provider.of<PhotoService>(
-          context,
-          listen: false,
-        ).buscarIdUsuarioPorNombre(input);
+        // Intentamos ver si es un número (ID directo)
+        if (RegExp(r'^[0-9]+$').hasMatch(input)) {
+          userId = int.tryParse(input);
+        } else {
+          // Si no es número, buscamos por nombre
+          final user = await Provider.of<PhotoService>(
+            context,
+            listen: false,
+          ).buscarUsuarioPorNombre(input);
+          if (user != null) {
+            userId = user.id;
+            userName = user.name;
+          }
+        }
 
         if (userId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Usuario no encontrado')),
-          );
-          setState(() {
-            _isSearching = false;
-          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Usuario no encontrado')),
+            );
+            setState(() => _isSearching = false);
+          }
           return;
         }
-      } catch (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al buscar usuario por nombre')),
-        );
-        setState(() {
-          _isSearching = false;
-        });
-        return;
+
+        // Llamamos al servicio original
+        await Provider.of<PhotoService>(
+          context,
+          listen: false,
+        ).obtenerFotosUsuario(userId, forcedUserName: userName);
+      } else {
+        // Usamos la nueva búsqueda avanzada global
+        await Provider.of<PhotoService>(
+          context,
+          listen: false,
+        ).buscarFotosAvanzado(_tipoBusqueda, input);
       }
-    }
-
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor introduce un nombre o ID válido'),
-        ),
-      );
-      setState(() {
-        _isSearching = false;
-      });
-      return;
-    }
-
-    try {
-      // Llamamos al servicio para buscar las fotos con la ID resuelta
-      await Provider.of<PhotoService>(
-        context,
-        listen: false,
-      ).obtenerFotosUsuario(userId);
 
       // Opcional: Limpiar el campo o cerrar teclado
-      FocusScope.of(context).unfocus();
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+      }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al cargar fotos del usuario')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al cargar resultados de búsqueda'),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -127,6 +142,10 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
     }
   }
 
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
+
   @override
   Widget build(BuildContext context) {
     // Decidimos qué lista de fotos mostrar según el modo
@@ -135,50 +154,99 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
         : Provider.of<PhotoService>(context).misItems;
 
     // Título de la AppBar dependiente del modo
-    final appBarTitle = widget.isSearchMode
-        ? 'Buscar Usuario'
-        : 'Mis Fotos Subidas';
+    final appBarTitle = widget.isSearchMode ? 'Buscador' : 'Mis Fotos Subidas';
 
     return Scaffold(
       appBar: AppBar(title: Text(appBarTitle)),
       body: Column(
         children: [
-          // ********** AREA DE BUSQUEDA (Solo visible en modo busqueda) ********** //
+          // ==========================================
+          // ÁREA DE BÚSQUEDA (SOLO VISIBLE EN MODO BÚSQUEDA)
+          // ==========================================
           if (widget.isSearchMode)
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        labelText: 'Buscar usuario',
-                        hintText: 'Introduce Nombre o ID',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
+                  Row(
+                    children: [
+                      const Text(
+                        'Buscar por:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      keyboardType: TextInputType.text, // Cambiado a texto
-                      onSubmitted: (_) => _buscarUsuario(),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: _tipoBusqueda,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'usuario',
+                              child: Text('Usuario (Nombre o ID)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'texto',
+                              child: Text('Título o Descripción'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'iso',
+                              child: Text('ISO (Ej: 100, 400)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'fecha',
+                              child: Text('Fecha (AAAA-MM-DD)'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null)
+                              setState(() => _tipoBusqueda = val);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSearching ? null : _buscarUsuario,
-                    child: _isSearching
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Buscar'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            labelText: 'Término de búsqueda',
+                            hintText: _tipoBusqueda == 'fecha'
+                                ? '2025-10-31'
+                                : 'Introduce tu búsqueda...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: _tipoBusqueda == 'iso'
+                              ? TextInputType.number
+                              : TextInputType.text,
+                          onSubmitted: (_) => _realizarBusqueda(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _isSearching ? null : _realizarBusqueda,
+                        child: _isSearching
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Buscar'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          // ********** FIN AREA DE BUSQUEDA ********** //
 
-          // ********** LISTA DE FOTOS ********** //
+          // ==========================================
+          // LISTA DE FOTOS
+          // ==========================================
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -187,7 +255,7 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
                     onRefresh: () async {
                       if (widget.isSearchMode) {
                         if (_searchController.text.isNotEmpty)
-                          await _buscarUsuario();
+                          await _realizarBusqueda();
                       } else {
                         await Provider.of<PhotoService>(
                           context,
@@ -210,7 +278,6 @@ class _FotosUsuarioScreenState extends State<FotosUsuarioScreen> {
                           ),
                   ),
           ),
-          // ********** FIN LISTA DE FOTOS ********** //
         ],
       ),
     );

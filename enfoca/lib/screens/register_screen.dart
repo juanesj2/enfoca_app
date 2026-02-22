@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 
+// ==========================================
+// PANTALLA DE REGISTRO
+// ==========================================
+
 class RegisterScreen extends StatefulWidget {
   static const routeName = '/register';
 
@@ -10,48 +14,59 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // ********** Variables de Estado ********** //
+  // ==========================================
+  // ESTADO (STATE)
+  // ==========================================
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores
+  // Controladores de Texto
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   var _isLoading = false;
-  // ********** FIN Variables de Estado ********** //
 
-  // ********** Logica de Registro ********** //
+  // ==========================================
+  // LÓGICA DE NEGOCIO
+  // ==========================================
+
   Future<void> _registrarse() async {
+    // 1. Validar formulario
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    // 2. Activar carga
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Llamada al servicio para registrar
+      // 3. Llamada al servicio para registrar
       await Provider.of<AuthService>(context, listen: false).registrarse(
         _nameController.text,
         _emailController.text,
         _passwordController.text,
         _confirmPasswordController.text,
       );
-      // Si va bien, volvemos atras (o al home)
+      // 4. Si va bien, volvemos atrás (o al home si la navegación así lo gestiona)
       Navigator.of(context).pop();
     } catch (error) {
-      // Manejo de errores
+      // 5. Manejo de errores
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('Ocurrió un error'),
-          content: Text(error.toString()),
+          title: const Text('Ocurrió un error'),
+          content: Text(
+            error
+                .toString()
+                .replaceAll('Exception: ', '')
+                .replaceAll('Exception', ''),
+          ),
           actions: [
             TextButton(
-              child: Text('Okay'),
+              child: const Text('Aceptar'),
               onPressed: () {
                 Navigator.of(ctx).pop();
               },
@@ -61,16 +76,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    // 6. Desactivar carga (si hubo error, si hubo éxito ya navegamos fuera)
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
-  // ********** FIN Logica de Registro ********** //
 
+  // ==========================================
+  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // ==========================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Registro')),
+      appBar: AppBar(title: const Text('Registro')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -78,10 +98,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // ********** Nombre ********** //
+                // ==========================================
+                // CAMPO NOMBRE
+                // ==========================================
                 TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Nombre'),
+                  decoration: const InputDecoration(labelText: 'Nombre'),
                   validator: (value) {
                     if (value!.isEmpty) {
                       return 'Por favor ingresa un nombre';
@@ -90,10 +112,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // ********** Email ********** //
+                // ==========================================
+                // CAMPO EMAIL
+                // ==========================================
                 TextFormField(
                   controller: _emailController,
-                  decoration: InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(
+                    labelText: 'Correo Electrónico',
+                  ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value!.isEmpty || !value.contains('@')) {
@@ -103,10 +129,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // ********** Contraseña ********** //
+                // ==========================================
+                // CAMPO CONTRASEÑA
+                // ==========================================
                 TextFormField(
                   controller: _passwordController,
-                  decoration: InputDecoration(labelText: 'Contraseña'),
+                  decoration: const InputDecoration(labelText: 'Contraseña'),
                   obscureText: true,
                   validator: (value) {
                     if (value!.isEmpty || value.length < 8) {
@@ -116,10 +144,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // ********** Confirmar Contraseña ********** //
+                // ==========================================
+                // CAMPO CONFIRMAR CONTRASEÑA
+                // ==========================================
                 TextFormField(
                   controller: _confirmPasswordController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Confirmar Contraseña',
                   ),
                   obscureText: true,
@@ -130,15 +160,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                // ********** Botón de Registro ********** //
+                // ==========================================
+                // BOTÓN DE REGISTRO
+                // ==========================================
                 if (_isLoading)
-                  CircularProgressIndicator()
+                  const CircularProgressIndicator()
                 else
                   ElevatedButton(
-                    child: Text('Registrarse'),
                     onPressed: _registrarse,
+                    child: const Text('Registrarse'),
                   ),
               ],
             ),

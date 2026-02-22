@@ -1,0 +1,72 @@
+﻿Analyzing enfoca...                                             
+
+   info - Don't use 'BuildContext's across async gaps - lib\screens\admin\photos_control_screen.dart:85:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\admin\reports_control_screen.dart:48:54 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\admin\users_control_screen.dart:94:11 - use_build_context_synchronously
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\screens\admin\users_control_screen.dart:133:19 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\admin\users_control_screen.dart:165:27 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\admin\users_control_screen.dart:166:27 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\admin\users_control_screen.dart:179:27 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\admin\users_control_screen.dart:180:27 - deprecated_member_use
+   info - Invalid use of a private type in a public API - lib\screens\foto_create_screen.dart:22:3 - library_private_types_in_public_api
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:85:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:103:32 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:112:30 - use_build_context_synchronously
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\screens\foto_create_screen.dart:122:9 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:133:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:195:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\foto_create_screen.dart:206:9 - use_build_context_synchronously
+   info - Parameter 'key' could be a super parameter - lib\screens\foto_screen.dart:20:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\screens\foto_screen.dart:23:3 - library_private_types_in_public_api
+   info - Don't use 'BuildContext's across async gaps - lib\screens\fotos_usuario_screen.dart:113:11 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\screens\fotos_usuario_screen.dart:202:31 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\fotos_usuario_screen.dart:258:27 - curly_braces_in_flow_control_structures
+   info - Parameter 'key' could be a super parameter - lib\screens\grupos\grupo_detalle_screen.dart:11:9 - use_super_parameters
+   info - Don't use 'BuildContext's across async gaps - lib\screens\grupos\grupo_detalle_screen.dart:54:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\grupos\grupo_detalle_screen.dart:59:11 - use_build_context_synchronously
+   info - Unnecessary use of 'toList' in a spread - lib\screens\grupos\grupo_detalle_screen.dart:213:24 - unnecessary_to_list_in_spreads
+   info - Parameter 'key' could be a super parameter - lib\screens\grupos\mis_grupos_screen.dart:7:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\screens\grupos\mis_grupos_screen.dart:10:3 - library_private_types_in_public_api
+   info - Constructors for public widgets should have a named 'key' parameter - lib\screens\home_screen.dart:14:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\screens\home_screen.dart:16:3 - library_private_types_in_public_api
+   info - Don't use 'BuildContext's across async gaps - lib\screens\home_screen.dart:57:34 - use_build_context_synchronously
+   info - 'onPopInvoked' is deprecated and shouldn't be used. Use onPopInvokedWithResult instead. This feature was deprecated after v3.22.0-12.0.pre - lib\screens\home_screen.dart:141:7 - deprecated_member_use
+   info - Constructors for public widgets should have a named 'key' parameter - lib\screens\login_screen.dart:9:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\screens\login_screen.dart:14:3 - library_private_types_in_public_api
+   info - Don't use 'BuildContext's across async gaps - lib\screens\login_screen.dart:56:9 - use_build_context_synchronously
+   info - Parameter 'key' could be a super parameter - lib\screens\logros\logros_screen.dart:6:9 - use_super_parameters
+   info - Invalid use of a private type in a public API - lib\screens\logros\logros_screen.dart:9:3 - library_private_types_in_public_api
+   info - Statements in an if should be enclosed in a block - lib\screens\perfil_screen.dart:154:43 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\perfil_screen.dart:158:43 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\perfil_screen.dart:178:43 - curly_braces_in_flow_control_structures
+   info - Constructors for public widgets should have a named 'key' parameter - lib\screens\register_screen.dart:9:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\screens\register_screen.dart:13:3 - library_private_types_in_public_api
+   info - Don't use 'BuildContext's across async gaps - lib\screens\register_screen.dart:54:20 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\register_screen.dart:58:9 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:249:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\desafio_service.dart:30:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\desafio_service.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\desafio_service.dart:71:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\desafio_service.dart:103:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:33:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:50:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:60:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:74:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:78:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:101:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:102:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\grupo_service.dart:114:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\photo_service.dart:338:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\photo_service.dart:355:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\photo_service.dart:439:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\photo_service.dart:523:7 - avoid_print
+   info - Parameter 'key' could be a super parameter - lib\widgets\comentario_item.dart:20:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\widgets\photo_item.dart:24:9 - use_super_parameters
+   info - 'Share' is deprecated and shouldn't be used. Use SharePlus instead - lib\widgets\photo_item.dart:256:23 - deprecated_member_use
+   info - 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead - lib\widgets\photo_item.dart:256:29 - deprecated_member_use
+warning - The value of the local variable 'list' isn't used - test_parse.dart:33:11 - unused_local_variable
+   info - Don't invoke 'print' in production code - test_parse.dart:34:5 - avoid_print
+   info - Don't invoke 'print' in production code - test_parse.dart:35:5 - avoid_print
+   info - Don't invoke 'print' in production code - test_parse.dart:37:5 - avoid_print
+   info - Don't invoke 'print' in production code - test_parse.dart:38:5 - avoid_print
+
