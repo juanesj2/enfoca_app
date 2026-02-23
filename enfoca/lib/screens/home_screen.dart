@@ -9,8 +9,11 @@ import 'fotos_usuario_screen.dart'; // Importamos la pantalla de Mis Fotos
 import 'perfil_screen.dart'; // Importamos la pantalla de Perfil
 
 // ==========================================
-// PANTALLA PRINCIPAL (HOME / FEED)
+// PANTALLA PRINCIPAL (HOME / FEED CENTRAL)
 // ==========================================
+// Este archivo actúa como el esqueleto contenedor (Scaffold) principal de la App.
+// Alberga la Barra Superior (AppBar), el Botón Flotante (FAB) central,
+// y la Barra de Navegación Inferior (BottomNavigationBar) que alterna 5 pantallas distintas.
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -19,88 +22,103 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // ==========================================
-  // ESTADO (STATE)
+  // ESTADO INTERNO (STATE)
   // ==========================================
-  var _isInit = true; // Controla si es la primera carga para inicializar datos
-  var _isLoading = false; // Controla el spinner de carga
-  int _selectedIndex = 0; // Índice de la página actual
+  var _isInit =
+      true; // Candado lógico para asegurar que la descarga inicial solo ocurra 1 vez.
+  var _isLoading =
+      false; // Controla que salga la "rulita" de carga al principio.
+  int _selectedIndex =
+      0; // Índice de la pestaña actual activada (0 = Feed, 1 = Buscar, etc.)
 
-  // Key para el navegador anidado del Feed
+  // Llave Maestra (GlobalKey) para un Navegador "Anidado".
+  // Esto permite que el Tab de Inicio (#0) tenga su propio historial de flechas de retroceso
+  // sin que la barra inferior desaparezca misteriosamente de la pantalla.
   final GlobalKey<NavigatorState> _feedNavigatorKey =
       GlobalKey<NavigatorState>();
 
-  // Variable para controlar PopScope
+  // Bandera física del sistema (Botón 'Atrás' de Android)
   bool _canPopNow = false;
 
   // ==========================================
-  // CICLO DE VIDA
+  // CICLO DE VIDA (INIT)
   // ==========================================
 
+  // Primer latido de vida del Widget antes de dibujarse en pantalla
   @override
   void didChangeDependencies() {
-    // Carga inicial de datos (Fotos)
     if (_isInit) {
       setState(() {
-        _isLoading = true;
+        _isLoading = true; // Enciende el Spinner
       });
+      // Llama a PHP y trae todas las fotos del muro social.
       Provider.of<PhotoService>(context)
           .obtenerFotos()
           .then((_) {
             setState(() {
-              _isLoading = false;
+              _isLoading = false; // Apaga el Spinner
             });
           })
           .catchError((error) {
             setState(() {
               _isLoading = false;
             });
-            // Manejar error (mostrar alerta, etc. si fuera necesario)
+            // Si hay error (Ej: No hay Wifi), aparece un cartelito (SnackBar) desde abajo.
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error al cargar fotos')),
+              const SnackBar(
+                content: Text(
+                  'Error al cargar red social: Servidor inaccesible',
+                ),
+              ),
             );
           });
     }
-    _isInit = false;
+    _isInit = false; // Cierra la puerta para siempre
     super.didChangeDependencies();
   }
 
   // ==========================================
-  // MÉTODOS DE CONTROL
+  // MÉTODOS DE CONTROL / ENRUTAMIENTO
   // ==========================================
 
-  // Método para cambiar de página desde la barra de navegación
+  // Disparado al presionar cualquier icono de la barra inferior
   void _alTocarItem(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Método para construir la pantalla correspondiente según el índice
+  // Fábrica de Pantallas ("Router" casero basado en Switch-Case)
   Widget _construirPagina() {
     switch (_selectedIndex) {
-      case 0: // Inicio (Explorar / Feed)
-        // Usamos un Navigator anidado para que al entrar en el detalle se mantenga el BottomBar
+      case 0: // ÍNDICE 0: Feed de Noticias (El Muro)
+        // Ojo: Se usa un Navigator especial aquí dentro para que si el usuario entra a ver
+        // los comentarios de una foto especifica, siga viendo la botonera principal abajo.
         return Navigator(
           key: _feedNavigatorKey,
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
               builder: (context) {
-                // Usamos Consumer para escuchar cambios en PhotoService (ej. likes)
+                // Consumer se suscribe a PhotoService.
+                // Si alguien da Like o sube foto, esto se auto-redibuja en tiempo real.
                 return Consumer<PhotoService>(
                   builder: (ctx, photoService, _) {
                     final photos = photoService.items;
                     if (photos.isEmpty) {
                       return const Center(
-                        child: Text('No hay fotos disponibles'),
+                        child: Text('El muro está vacío O_o'),
                       );
                     }
+                    // RefreshIndicator envuelve al muro. Si "tiras hacia abajo" con el dedo,
+                    // vuelve a llamar a la API para ver fotos nuevas (Como Instagram).
                     return RefreshIndicator(
                       onRefresh: () => Provider.of<PhotoService>(
                         ctx,
                         listen: false,
                       ).obtenerFotos(),
                       child: ListView.builder(
-                        itemCount: photos.length,
+                        itemCount: photos.length, // Número de cajas a dibujar
+                        // photoItem.dart encapsula el cuadro de cada foto individual
                         itemBuilder: (c, i) => PhotoItem(photo: photos[i]),
                       ),
                     );
@@ -110,51 +128,49 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         );
-      case 1: // Buscador
+      case 1: // ÍNDICE 1: Buscador Lupa
         return const FotosUsuarioScreen(isSearchMode: true);
-      case 2: // Crear (Acción del FAB)
-        // Pasamos el callback para que al terminar de subir, vuelva a la home
+      case 2: // ÍNDICE 2: El colosal Botón Central Flotante (Cámara)
+        // Pasamos un "Callback" (Función puente): Si al chaval le sale bien subir la foto,
+        // _alTocarItem(0) lo fuerza a volver al Muro Inédito para ver su obra de arte recién parida.
         return FotoCreateScreen(
           onPhotoUploaded: () {
-            // Volver al inicio (Feed) y refrescar si es necesario
             _alTocarItem(0);
           },
         );
-      case 3: // Mis Fotos
-        return const FotosUsuarioScreen(
-          isSearchMode: false,
-        ); // Devolvemos la pantalla de Mis Fotos
-      case 4: // Perfil
-        return const PerfilScreen(); // Devolvemos la pantalla de Perfil
+      case 3: // ÍNDICE 3: Área personal (Mis Fotos filtradas)
+        return const FotosUsuarioScreen(isSearchMode: false);
+      case 4: // ÍNDICE 4: Ajustes / Perfil del Usario
+        return const PerfilScreen();
       default:
-        return const Center(child: Text("Página no encontrada"));
+        return const Center(child: Text("Pantalla en obras"));
     }
   }
 
   // ==========================================
-  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // CONSTRUCCIÓN DEL ÁRBOL MAESTRO (BUILD)
   // ==========================================
 
   @override
   Widget build(BuildContext context) {
+    // PopScope: Parche mágico de Flutter moderno para interceptar el "Volver" táctil en Android.
+    // Evita que el usuario destroce el Navigator anidado al usar el gesto nativo del teléfono.
     return PopScope(
       canPop: _canPopNow,
       onPopInvoked: (didPop) async {
-        if (didPop) {
-          return;
-        }
+        if (didPop) return;
 
-        // Si estamos en el tab de Inicio (0) y hay historial en su navegador anidado
+        // Si estamos viendo el Tab Inicio (0), consultamos el historial de su navegador anidado especial
         if (_selectedIndex == 0) {
           final poppedInternal = await _feedNavigatorKey.currentState!
               .maybePop();
           if (poppedInternal) {
-            // Si pudo hacer pop dentro del tab, ya se manejó el evento
+            // Se pudo retroceder a la página anterior dentro del propio Feed. Asunto arreglado.
             return;
           }
         }
 
-        // Si no se manejó internamente, permitimos salir
+        // Si ya estamos en la base del Tab 0 o en cualquier otro Tab, autorizamos el cerrojazo total.
         setState(() {
           _canPopNow = true;
         });
@@ -166,43 +182,38 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Scaffold(
         // ==========================================
-        // APPBAR SUPERIOR
+        // CABECERA GLOBAL (AppBar)
         // ==========================================
         appBar: AppBar(
-          // Logo y título de la app
           title: Row(
             children: [
               Image.asset('assets/images/logo.ico', height: 40),
               const SizedBox(width: 10),
-              const Text('Enfoca'),
+              const Text(
+                'Enfoca',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
-          // ==========================================
-          // ACCIONES DE LA APPBAR (DERECHA)
-          // ==========================================
           actions: [
-            // Usamos Consumer para escuchar reactivamente al ThemeService.
-            // Cuando el estado de isDarkMode cambia, solo este widget (el Icono) se redibuja.
+            // INTERRUPTOR MODO OSCURO GLOBAL
+            // El Consumer huele qué tema estamos usando (Claro/Oscuro) en ThemeService
             Consumer<ThemeService>(
               builder: (context, themeService, child) {
                 return IconButton(
-                  // Alternamos el icono dinámicamente:
-                  // Si está en Modo Oscuro, mostramos un Sol (para volver a claro).
-                  // Si está en Modo Claro, mostramos una Luna (para ir al oscuro).
+                  // Iconografía dinámica inteligente
                   icon: Icon(
                     themeService.isDarkMode
                         ? Icons.light_mode
                         : Icons.dark_mode,
                   ),
-                  // Al presionar el botón, ejecutamos el método toggleTheme del ThemeService
-                  // que invertirá el valor y notificará a toda la App.
                   onPressed: () {
-                    themeService.toggleTheme();
+                    themeService
+                        .toggleTheme(); // Cortocircuita la fuente de luz
                   },
-                  // Texto emergente al mantener presionado (Accesibilidad)
                   tooltip: themeService.isDarkMode
-                      ? 'Cambiar a Modo Claro'
-                      : 'Cambiar a Modo Oscuro',
+                      ? 'Desactivar Modo Oscuro'
+                      : 'Activar Modo Nocturno',
                 );
               },
             ),
@@ -210,50 +221,51 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // ==========================================
-        // CUERPO DINÁMICO
+        // LIENZO DINÁMICO (Llama al Switch de arriba)
         // ==========================================
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _construirPagina(),
 
         // ==========================================
-        // BOTÓN FLOTANTE (FAB) - CREAR
+        // BOTÓN FLOTANTE GIGANTE (FAB)
         // ==========================================
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // Acción del botón Crear
+            // Fuerza la vista 2 (Pantalla de Subir Foto)
             setState(() {
               _selectedIndex = 2;
             });
           },
           backgroundColor:
-              Colors.orange, // Color distintivo para que sobresalga
+              Colors.orange, // Destaca por encima del resto grisáceo
           elevation: 4,
           child: const Icon(Icons.add_a_photo, size: 28),
         ),
+        // Le indicamos dónde anclarse (Con una clase matemática artesanal abajo)
         floatingActionButtonLocation:
             const CustomFloatingActionButtonLocation(),
 
         // ==========================================
-        // BARRA DE NAVEGACIÓN INFERIOR (BOTTOM APP BAR)
+        // TAPETE DE NAVEGACIÓN INFERIOR (BottomAppBar)
         // ==========================================
         bottomNavigationBar: BottomAppBar(
-          shape:
-              const CircularNotchedRectangle(), // Recorte circular para el FAB
-          notchMargin: 8.0, // Margen entre FAB y barra
+          // CircularNotchedRectangle muerde el medio de la barra para abrazar al Botón Naranja.
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 8.0, // Aire entre el mordisco y el botón.
           child: SizedBox(
             height: 60,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // --- Izquierda ---
+                // --- MITAD IZQUIERDA ---
                 IconButton(
                   icon: Icon(
                     Icons.home,
                     color: _selectedIndex == 0 ? Colors.blue : Colors.grey,
                   ),
                   onPressed: () => _alTocarItem(0),
-                  tooltip: 'Inicio',
+                  tooltip: 'Muro Público',
                 ),
                 IconButton(
                   icon: Icon(
@@ -261,18 +273,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: _selectedIndex == 1 ? Colors.blue : Colors.grey,
                   ),
                   onPressed: () => _alTocarItem(1),
-                  tooltip: 'Buscar',
+                  tooltip: 'Explorar Usuarios',
                 ),
 
-                const SizedBox(width: 40), // Espacio para el FAB
-                // --- Derecha ---
+                // CRÁTER CENTRAL (Hueco vacío para que quepa el Botón Naranja suspendido arriba)
+                const SizedBox(width: 40),
+
+                // --- MITAD DERECHA ---
                 IconButton(
                   icon: Icon(
                     Icons.person,
                     color: _selectedIndex == 3 ? Colors.blue : Colors.grey,
                   ),
                   onPressed: () => _alTocarItem(3),
-                  tooltip: 'Mis Fotos',
+                  tooltip: 'Mi GalerÍa',
                 ),
                 IconButton(
                   icon: Icon(
@@ -280,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: _selectedIndex == 4 ? Colors.blue : Colors.grey,
                   ),
                   onPressed: () => _alTocarItem(4),
-                  tooltip: 'Perfil',
+                  tooltip: 'Panel Personal',
                 ),
               ],
             ),
@@ -292,27 +306,28 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ==========================================
-// CLASE AUXILIAR: UBICACIÓN DEL FAB
+// FORMULACIÓN MATEMÁTICA DE DISEÑO (FLUTTER ENGINE UI)
 // ==========================================
-
-// Clase personalizada para bajar un poco el botón flotante
+// Flutter no deja por defecto "hundir" los botones flotantes todo lo que queramos.
+// Esta clase hereda del Motor Gráfico y fuerza mecánicamente por coordenadas (XY)
+// bajar el logo naranja 30 píxeles más hacia el infierno, para que quede perfectamente encajado.
 class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
   const CustomFloatingActionButtonLocation();
 
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    // Calculamos la posición X (centrada)
+    // Eje X: Anchura total / 2 = Medio exacto.
     final double fabX =
         (scaffoldGeometry.scaffoldSize.width -
             scaffoldGeometry.floatingActionButtonSize.width) /
         2.0;
 
-    // Calculamos la posición Y estándar (centerDocked)
+    // Eje Y: Coordenadas originales nativas.
     final double standardY =
         scaffoldGeometry.contentBottom -
         scaffoldGeometry.floatingActionButtonSize.height / 2.0;
 
-    // Bajamos el botón 30 pixeles más para que no sobresalga tanto
+    // MAGIA: Sumamos +30 píxeles extra de gravedad
     return Offset(fabX, standardY + 30.0);
   }
 }

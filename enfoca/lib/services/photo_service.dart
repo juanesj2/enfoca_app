@@ -8,81 +8,90 @@ import '../models/fotografia.dart';
 import '../models/user.dart';
 
 // ==========================================
-// SERVICIO DE FOTOGRAFÍAS
+// SERVICIO CENTRAL DE FOTOGRAFÍAS (REST API)
 // ==========================================
+// Este Provider es el núcleo pesado de toda la red social.
+// Maneja la subida de fotos (Multipart), la descarga del feed,
+// el sistema de "Me Gusta" optimista, y la moderación del Administrador.
 
 class PhotoService with ChangeNotifier {
+  // Nodo raíz de la API de Laravel
   static const String _baseUrl = 'http://enfoca.alwaysdata.net/api';
 
   // ==========================================
-  // ESTADO (STATE)
+  // ESTADO GLOBAL DE LA APP (STATE)
   // ==========================================
+  // Mantenemos 3 listas separadas en Memoria RAM para no mezclar contextos visuales.
 
-  List<Fotografia> _items = []; // Todas las fotos (Feed)
-  List<Fotografia> _misItems = []; // Fotos del usuario autenticado
-  List<Fotografia> _itemsUsuarioBuscado =
-      []; // Fotos de un usuario específico buscado
+  // 1. El Feed público general (pantalla principal)
+  List<Fotografia> _items = [];
+
+  // 2. Mi galería privada (Mi perfil)
+  List<Fotografia> _misItems = [];
+
+  // 3. Resultados temporales cuando uso el buscador (Pantalla de Búsqueda)
+  List<Fotografia> _itemsUsuarioBuscado = [];
 
   // ==========================================
-  // GETTERS
+  // GETTERS (SEGURIDAD)
   // ==========================================
+  // Usamos `[...]` para exportar copias inmutables y proteger el estado original.
 
-  // Acceso a la lista principal de fotos
   List<Fotografia> get items {
     return [..._items];
   }
 
-  // Acceso a las fotos del usuario actual
   List<Fotografia> get misItems {
     return [..._misItems];
   }
 
-  // Acceso a las fotos del usuario buscado
   List<Fotografia> get itemsUsuarioBuscado {
     return [..._itemsUsuarioBuscado];
   }
 
   // ==========================================
-  // MÉTODOS DE BÚSQUEDA LOCAL
+  // BÚSQUEDA CRUZADA EN CACHÉ RAM
   // ==========================================
-
-  // Busca una foto por ID en TODAS las listas locales disponibles
+  // Utiliza el id de una foto para escanear las tres memorias listas locales de forma ultrarrápida,
+  // antes de tener que pedirla a Internet. Útil al pulsar una notificación o enlace directo.
   Fotografia? obtenerFotoPorId(int id) {
-    // 1. Buscar en Items generales (Feed)
+    // 1. Escanea el Feed principal
     try {
       return _items.firstWhere((photo) => photo.id == id);
     } catch (e) {
-      // No encontrada en _items
+      // Ignoramos el error si no está
     }
 
-    // 2. Buscar en Mis Fotos
+    // 2. Escanea Mi Perfil
     try {
       return _misItems.firstWhere((photo) => photo.id == id);
     } catch (e) {
-      // No encontrada en _misItems
+      // Ignoramos el error si no está
     }
 
-    // 3. Buscar en Fotos de Usuario Buscado
+    // 3. Escanea la Búsqueda
     try {
       return _itemsUsuarioBuscado.firstWhere((photo) => photo.id == id);
     } catch (e) {
-      // No encontrada en _itemsUsuarioBuscado
+      // Ignoramos el error si no está
     }
 
-    return null;
+    return null; // Si no está cargada en ninguna lista local, devolvemos nulo.
   }
 
   // ==========================================
-  // MÉTODOS DE API: LECTURA
+  // OPERACIONES DE LECTURA (GET) - DESCARGAS MASIVAS
   // ==========================================
 
-  // Carga todas las fotos (Feed principal)
+  // Descarga y sobrescribe la lista entera del feed público.
   Future<void> obtenerFotos() async {
     final url = Uri.parse('$_baseUrl/fotografias');
-    final token = await _obtenerToken();
+    final token = await _obtenerToken(); // Abro la bóveda local
 
     if (token == null) {
-      throw Exception('No hay token, usuario no autenticado');
+      throw Exception(
+        'No hay token, el sistema cortocircuita la petición de red.',
+      );
     }
 
     try {
@@ -96,26 +105,32 @@ class PhotoService with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // La API devuelve un objeto con "data": [...]
+
+        // Laravel pagina o envuelve las respuestas en el nodo "data"
         final List<dynamic> photosList = data['data'];
 
+        // Vaciamos e inflamos la lista principal
         _items = photosList.map((json) => Fotografia.fromJson(json)).toList();
+
+        // Disparamos el Redraw (Re-dibujado) masivo de la UI
         notifyListeners();
       } else {
-        throw Exception('Error al cargar fotos');
+        throw Exception(
+          'Error 500 o 404 del servidor al pedir catálogo general',
+        );
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Obtiene únicamente las fotos subidas por el usuario logueado
+  // Idéntico al anterior pero consumiendo el Endpoint exclusivo para Mi Perfil
   Future<void> obtenerMisFotos() async {
     final url = Uri.parse('$_baseUrl/mis-fotos');
     final token = await _obtenerToken();
 
     if (token == null) {
-      throw Exception('No hay token, usuario no autenticado');
+      throw Exception('No hay token de sesión.');
     }
 
     try {
@@ -131,33 +146,35 @@ class PhotoService with ChangeNotifier {
         final data = json.decode(response.body);
         final List<dynamic> photosList = data['data'];
 
+        // Truco Visual: Si Laravel me omite mi propio nombre (por optimizar),
+        // lo inyectamos manualmente para que mi perfil luzca perfecto.
         final userName = await _obtenerNombreUsuario() ?? 'Usuario';
 
         _misItems = photosList.map((json) {
           final foto = Fotografia.fromJson(json);
-          // Si la foto viene con nombre genérico "Usuario", asignamos el nombre real
+          // Constructor CopyWith: Si se llama Usuario, lo cambio por ejemplo a "Juanes"
           if (foto.userName == 'Usuario') {
             return foto.copyWith(userName: userName);
           }
           return foto;
         }).toList();
+
         notifyListeners();
       } else {
-        throw Exception('Error al cargar mis fotos');
+        throw Exception('El Backend rechazó darnos Tus Fotografías');
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Obtiene las fotos de un usuario específico por su ID
+  // Lista las fotos que subió una persona específica clicando su nombre
   Future<void> obtenerFotosUsuario(int userId, {String? forcedUserName}) async {
+    // Aquí la URL es dinámica: Contiene el ID de la víctima de nuestra búsqueda
     final url = Uri.parse('$_baseUrl/fotografias-usuario/$userId');
     final token = await _obtenerToken();
 
-    if (token == null) {
-      throw Exception('No hay token, usuario no autenticado');
-    }
+    if (token == null) throw Exception('No autenticado');
 
     try {
       final response = await http.get(
@@ -172,6 +189,7 @@ class PhotoService with ChangeNotifier {
         final data = json.decode(response.body);
         final List<dynamic> photosList = data['data'];
 
+        // Llenamos la 3ª Lista (La temporal de Búsqueda)
         _itemsUsuarioBuscado = photosList.map((json) {
           final foto = Fotografia.fromJson(json);
           if (forcedUserName != null && foto.userName == 'Usuario') {
@@ -179,22 +197,26 @@ class PhotoService with ChangeNotifier {
           }
           return foto;
         }).toList();
+
         notifyListeners();
       } else {
-        throw Exception('Error al cargar fotos del usuario');
+        throw Exception('Error 500 al investigar usuario concreto');
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Obtiene una foto especifica directamente desde la API usando su ID
+  // ==========================================
+  // OPERACIONES DE ESPECÍFICO A API (SINGLE FETCH)
+  // ==========================================
+  // Si nos pasan un enlace de WhatsApp y abrimos la app, puede que la foto
+  // no estuviese en la RAM. Así que vamos forzosamente a buscar esa específica a la red.
   Future<Fotografia?> obtenerFotoPorIdApi(int fotoId) async {
     final url = Uri.parse('$_baseUrl/fotografias/$fotoId');
     final token = await _obtenerToken();
 
-    // Podemos intentar buscarla publicamente si no hay token,
-    // pero idealmente enviamos el token si existe.
+    // Intentamos mandarla sin Auth por si es pública, o con Auth si hay inicio de sesión.
     final headers = {'Accept': 'application/json'};
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
@@ -204,6 +226,7 @@ class PhotoService with ChangeNotifier {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        // Construimos 1 solo objeto modelo de Dart
         return Fotografia.fromJson(data['data']);
       }
       return null;
@@ -212,14 +235,17 @@ class PhotoService with ChangeNotifier {
     }
   }
 
-  // Busca un usuario por nombre
+  // ==========================================
+  // BÚSQUEDA AVANZADA MEDIANTE FILTROS Y QUERIES REST
+  // ==========================================
+
+  // Buscar a alguien introduciendo letras en un formulario
   Future<User?> buscarUsuarioPorNombre(String name) async {
+    // Construcción de la URL con un Query Parameter (?parametro=valor)
     final url = Uri.parse('$_baseUrl/usuarios/buscar?query=$name');
     final token = await _obtenerToken();
 
-    if (token == null) {
-      throw Exception('No hay token, usuario no autenticado');
-    }
+    if (token == null) throw Exception('No autenticado');
 
     try {
       final response = await http.get(
@@ -235,21 +261,22 @@ class PhotoService with ChangeNotifier {
         final List<dynamic> usersData = data['data'];
 
         if (usersData.isNotEmpty) {
-          // Devolvemos el primer usuario encontrado
+          // Devolvemos AL PRIMER sujeto que coincida y lo Parseamos a Objeto User
           return User.fromJson(usersData[0]);
         }
-        return null; // No se encontró usuario
+        return null;
       } else {
-        throw Exception('Error al buscar usuario');
+        throw Exception('El backend no entiende la solicitud de busqueda');
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Búsqueda avanzada de fotos (por usuario, texto, iso, etc)
+  // Buscador paramétrico de Exposición/ISO/Cámaras
   Future<void> buscarFotosAvanzado(String tipoBusqueda, String query) async {
-    // tipoBusqueda puede ser: 'usuario', 'texto', 'iso', 'fecha'
+    // Ej: ?iso=100
+    // Ej: ?texto=Perro
     final url = Uri.parse('$_baseUrl/fotografias/buscar?$tipoBusqueda=$query');
     final token = await _obtenerToken();
 
@@ -268,12 +295,13 @@ class PhotoService with ChangeNotifier {
         final data = json.decode(response.body);
         final List<dynamic> photosList = data['data'];
 
+        // Guardamos los resultados de los metadatos en la lista dinámica de buscador
         _itemsUsuarioBuscado = photosList
             .map((json) => Fotografia.fromJson(json))
             .toList();
         notifyListeners();
       } else {
-        throw Exception('Error en búsqueda avanzada');
+        throw Exception('Fallo en el motor de búsqueda MySQL Avanzado');
       }
     } catch (error) {
       rethrow;
@@ -281,12 +309,12 @@ class PhotoService with ChangeNotifier {
   }
 
   // ==========================================
-  // MÉTODOS DE API: CREACIÓN (POST)
+  // ALTA DE CONTENIDO NUEVO (POST MULTIPART)
   // ==========================================
-
-  // Sube una nueva fotografía
+  // Esto no es un POST normal de texto JSON. Estamos subiendo Binarios Grandes (Imágenes JPG/PNG).
+  // Por lo tanto usamos el protocolo "Multipart/form-data".
   Future<void> crearFoto(
-    File image,
+    File image, // Objeto binario del disco duro
     String titulo,
     String descripcion, {
     double? latitud,
@@ -298,19 +326,19 @@ class PhotoService with ChangeNotifier {
     final url = Uri.parse('$_baseUrl/fotografias');
     final token = await _obtenerToken();
 
-    if (token == null) {
-      throw Exception('No se encontró token de autenticación');
-    }
+    if (token == null) throw Exception('Token Extraviado');
 
+    // Inicializamos una Petición Multiparte Asíncrona Especial de Flutter
     final request = http.MultipartRequest('POST', url)
       ..headers.addAll({
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       })
+      // Acoplamos los Textos planos como "Campos" de Formulario Antiguo HTML
       ..fields['titulo'] = titulo
       ..fields['descripcion'] = descripcion;
 
-    // Campos opcionales (Metadatos y ubicación)
+    // Campos TÉCNICOS Opcionales (Si vienen null, simplemente no se los mandamos a PHP)
     if (latitud != null) request.fields['latitud'] = latitud.toString();
     if (longitud != null) request.fields['longitud'] = longitud.toString();
     if (iso != null) request.fields['ISO'] = iso.toString();
@@ -319,25 +347,28 @@ class PhotoService with ChangeNotifier {
     }
     if (apertura != null) request.fields['apertura'] = apertura.toString();
 
-    // Archivo de imagen
+    // Archivo Binario Giga/Megabyte (LA FOTO EN SÍ)
     request.files.add(
       await http.MultipartFile.fromPath(
-        'direccion_imagen', // Nombre del campo esperado por el backend
+        'direccion_imagen', // Llave mágica que Laravel 'Request->file()' está esperando atrapar
         image.path,
       ),
     );
 
     try {
+      // Ordenamos a la antena Wi-Fi del móvil disparar los binarios fraccionados
       final streamedResponse = await request.send();
+      // Re-ensamblamos el acuse de recibo
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Éxito: Recargamos las fotos para mostrar la nueva
+        // Todo triunfó, así que le pedimos a Laravel que nos de el listado nuevo
+        // para que la imagen que acabamos de subir aparezca renderizada de inmediato
         await obtenerFotos();
       } else {
-        print('Error al crear foto: ${response.body}');
+        print('Error de Upload Multiparte: ${response.body}');
 
-        // Intentamos decodificar el mensaje de error
+        // Parseador de Errores inteligente para extraer el texto rojo "Validation Error" de Laravel
         String errorMsg = 'Error ${response.statusCode}';
         try {
           final body = json.decode(response.body);
@@ -352,27 +383,34 @@ class PhotoService with ChangeNotifier {
         throw Exception(errorMsg);
       }
     } catch (error) {
-      print('Excepción al crear foto: $error');
+      print('Excepción C en UPLOAD FOTO: $error');
       rethrow;
     }
   }
 
   // ==========================================
-  // MÉTODOS DE API: INTERACCIÓN (LIKES)
+  // ACTUALIZACIONES OPTIMISTAS (UI UX MODERNA)
   // ==========================================
+  // ¿Qué pasa al dar Like?
+  // 1. Modificamos el diseño en 1 milisegundo (ROJO inmédiato). User Experience Increíble.
+  // 2. Por detrás disparamos la petición a Laravel, que tarda 500ms en llegar a Francia.
+  // 3. Si llega bien, todo se deja como está.
+  // 4. Si el servidor de Francia se cae y da un 500 Timeout (Falla), HACE ROLLBACK, deshace el coloreo y le quita el Like en UI.
 
-  // Alterna el like de una foto (dar/quitar like)
   Future<void> alternarLike(int id) async {
-    // Helper para actualizar una lista local específica (Optimistic UI Update)
+    // FUNCIÓN CLAUSTRO (Helper): Reemplaza la instancia vieja por una con Like contado en Memoria
     void actualizarLista(List<Fotografia> lista) {
       final index = lista.indexWhere((item) => item.id == id);
       if (index >= 0) {
         final oldPhoto = lista[index];
-        final isLiked = oldPhoto.likedByUser;
+        final isLiked = oldPhoto.likedByUser; // Estado anterior
+
+        // Matemáticas condicionales de suma/resta
         final newCount = isLiked
             ? (oldPhoto.likesCount > 0 ? oldPhoto.likesCount - 1 : 0)
             : oldPhoto.likesCount + 1;
 
+        // Sobrescribimos en la ranura
         lista[index] = oldPhoto.copyWith(
           likedByUser: !isLiked,
           likesCount: newCount,
@@ -380,7 +418,7 @@ class PhotoService with ChangeNotifier {
       }
     }
 
-    // Buscamos el estado original para enviarlo al servidor
+    // 1. ANTES DE NADA: ¿La foto ya me gustaba o no? (Investigación Preventiva Local)
     bool isLikedOriginal = false;
     var index = _items.indexWhere((item) => item.id == id);
 
@@ -395,26 +433,27 @@ class PhotoService with ChangeNotifier {
         if (index >= 0) {
           isLikedOriginal = _itemsUsuarioBuscado[index].likedByUser;
         } else {
-          return; // No se encontró la foto
+          return; // No existe
         }
       }
     }
 
-    // Actualizamos optimísticamente TODAS las listas
+    // 2. ACTUALIZACIÓN VISUAL INMEDIATA EN PANTALLA
+    // Aplicamos a todas las listas para que no haya desincronización por si navegamos rápido.
     actualizarLista(_items);
     actualizarLista(_misItems);
     actualizarLista(_itemsUsuarioBuscado);
+    notifyListeners(); // ¡Puum! Corazón pintado o despintado en pantalla con Animación
 
-    notifyListeners();
-
+    // 3. LLAMADA REAL LENTA HACIA BACKEND LARAVEL PIVOT
     final url = Uri.parse('$_baseUrl/fotografias/$id/like');
     final token = await _obtenerToken();
 
-    // Enviamos petición al servidor
     try {
+      // Si la investigación local decía que sí me gustaba (ROJO), toca enviar VERBO DELETE (Borrar registro tabla pivot)
+      // Si no me gustaba originalmente (GRIS), toca enviar VERBO POST (Crear registro de relación DB MySQL)
       final response = isLikedOriginal
           ? await http.delete(
-              // Si ya tenía like, lo quitamos (DELETE)
               url,
               headers: {
                 'Authorization': 'Bearer $token',
@@ -422,7 +461,6 @@ class PhotoService with ChangeNotifier {
               },
             )
           : await http.post(
-              // Si no tenía like, lo damos (POST)
               url,
               headers: {
                 'Authorization': 'Bearer $token',
@@ -430,16 +468,21 @@ class PhotoService with ChangeNotifier {
               },
             );
 
+      // 4. CONTROL DE DAÑOS Y ROLLBACK
       if (response.statusCode >= 400) {
-        // Rollback: Revertir cambios si falla la petición
-        actualizarLista(_items);
+        // Ups, Internet caído o Error 404
+        actualizarLista(
+          _items,
+        ); // Lo llamamos de nuevo (Al voltear booleanos des-hace la resta anterior)
         actualizarLista(_misItems);
         actualizarLista(_itemsUsuarioBuscado);
-        notifyListeners();
-        print('Error al dar like: ${response.statusCode}');
+        notifyListeners(); // Refrescamos pantalla y destrozamos el Like visual al instante
+        print(
+          'Error en red al intentar solidificar Like: ${response.statusCode}',
+        );
       }
     } catch (error) {
-      // Rollback por excepción
+      // Rollback violento por excepción Try-Catch (Avión modo, etc...)
       actualizarLista(_items);
       actualizarLista(_misItems);
       actualizarLista(_itemsUsuarioBuscado);
@@ -449,11 +492,12 @@ class PhotoService with ChangeNotifier {
   }
 
   // ==========================================
-  // GESTIÓN LOCAL DE COMENTARIOS
+  // INTERCONECTORES Y PARCHES DE CONTADORES (UI LOCAL)
   // ==========================================
 
-  // Se usan para actualizar los contadores en las listas tras añadir/borrar comentarios en detalle
-
+  // Evitan tener que recargar toda la base de datos MySQL por red solo porque enviaste
+  // tu comentario. Si enviaste comentario con éxito mediante ComentarioService, te llama aquí,
+  // y actualiza tu +1 del contador visual de la caja de Fotografía Padre instantáneamente y en silencio temporal (+1).
   void notificarComentarioAnadido(int photoId) {
     void actualizar(List<Fotografia> lista) {
       final index = lista.indexWhere((item) => item.id == photoId);
@@ -493,10 +537,10 @@ class PhotoService with ChangeNotifier {
   }
 
   // ==========================================
-  // GESTIÓN DE FOTOGRAFÍAS (ADMIN)
+  // PANEL PRIVADO DEL ADMINISTRADOR
   // ==========================================
 
-  // Obtener TODAS las fotos (incluidas vetadas) para admin
+  // Pide TODO. Incluso las que están "Vetadas" rojas ocultas al público general.
   Future<void> obtenerFotosAdmin() async {
     final url = Uri.parse('$_baseUrl/admin/fotografias');
     final token = await _obtenerToken();
@@ -513,19 +557,20 @@ class PhotoService with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> photosList = data['data'];
+
+        // Enchufe directo en caché central public
         _items = photosList.map((json) => Fotografia.fromJson(json)).toList();
         notifyListeners();
       } else {
-        throw Exception('Error al cargar fotos de admin');
+        throw Exception('Rebelión de datos al listar fotos administrativas');
       }
     } catch (error) {
-      // Fallback
       print(error);
       rethrow;
     }
   }
 
-  // Eliminar fotografía (Admin)
+  // Extirpación total e ignominiosa de una fotografía usando la Death Star HTTP DELETE.
   Future<void> eliminarFoto(int id) async {
     final url = Uri.parse('$_baseUrl/fotografias/$id');
     final token = await _obtenerToken();
@@ -542,18 +587,19 @@ class PhotoService with ChangeNotifier {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        // Eliminación visual de todas las listas si la cirugía fue un éxito perimetral
         _items.removeWhere((item) => item.id == id);
         _misItems.removeWhere((item) => item.id == id);
         notifyListeners();
       } else {
-        throw Exception('Error al eliminar fotografía');
+        throw Exception('Servicio bloqueado. No se extirpó a tiempo.');
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Editar fotografía (Título, descripción y veto)
+  // Veto Político y Modificaciones textuarias directas sin formulario pesado
   Future<void> editarFoto(
     int id,
     String titulo,
@@ -581,9 +627,9 @@ class PhotoService with ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await obtenerFotos(); // Recargar lista para ver cambios
+        await obtenerFotos(); // Recarga Global Masiva al modificar un estado
       } else {
-        throw Exception('Error al editar fotografía');
+        throw Exception('El Backend repelió la invasión al editar');
       }
     } catch (error) {
       rethrow;
@@ -591,10 +637,9 @@ class PhotoService with ChangeNotifier {
   }
 
   // ==========================================
-  // GESTIÓN DE REPORTES (ADMIN)
+  // GESTIÓN DE INCIDENCIAS/RECLAMACIONES DE CONTENIDO
   // ==========================================
 
-  // Enviar reporte de fotografía
   Future<void> reportarFoto(int fotoId, String motivo) async {
     final url = Uri.parse('$_baseUrl/reportes');
     final token = await _obtenerToken();
@@ -613,20 +658,20 @@ class PhotoService with ChangeNotifier {
       );
 
       if (response.statusCode == 409) {
+        // Unique Constraint Exception en PostgreSQL o MySQL devuelta de maravilla en un JSON (Duplicidad)
         final errorData = json.decode(response.body);
         throw errorData['error'] ??
-            'Ya has reportado esta fotografía previamente.';
+            'La foto ya figura en la libreta de reportes bajo tu mano.';
       } else if (response.statusCode != 200 && response.statusCode != 201) {
-        throw 'Error al procesar la solicitud.';
+        throw 'Fallo en la comisaría de base de datos.';
       }
     } catch (error) {
       rethrow;
     }
   }
 
-  // Obtener reportes
   Future<List<dynamic>> obtenerReportes() async {
-    final url = Uri.parse('$_baseUrl/admin/reportes'); // Endpoint correcto
+    final url = Uri.parse('$_baseUrl/admin/reportes');
     final token = await _obtenerToken();
 
     if (token == null) throw Exception('No autenticado');
@@ -642,18 +687,17 @@ class PhotoService with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['data']; // Asumiendo que devuelve lista de reportes
+        // Devolvemos el array crudo para que la pantalla de administración la engulla
+        return data['data'];
       } else {
-        // Si el endpoint no existe aún, simulamos datos vacíos para no romper la UI
-        // throw Exception('Error al obtener reportes');
         return [];
       }
     } catch (error) {
-      return []; // Fallback seguro
+      return []; // Devolvemos lista trampa vacía antes de colgar con Exception la pantalla Admin.
     }
   }
 
-  // Eliminar reportes de una foto (indultar)
+  // Perdón presidencial (Indultar foto mediante exterminio de denuncias previas)
   Future<void> eliminarReportes(int fotoId) async {
     final url = Uri.parse('$_baseUrl/admin/reportes/$fotoId');
     final token = await _obtenerToken();
@@ -670,7 +714,9 @@ class PhotoService with ChangeNotifier {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Error al eliminar reportes');
+        throw Exception(
+          'El Juez Backend denegó limpiar su historial policial.',
+        );
       }
     } catch (error) {
       rethrow;
@@ -678,10 +724,9 @@ class PhotoService with ChangeNotifier {
   }
 
   // ==========================================
-  // MÉTODOS AUXILIARES PRIVADOS
+  // ÚTILES DISCO DURO AISLADO (PRIVADO)
   // ==========================================
 
-  // Obtiene el token guardado en SharedPreferences
   Future<String?> _obtenerToken() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('userData')) {
@@ -692,7 +737,6 @@ class PhotoService with ChangeNotifier {
     return extractedUserData['token'];
   }
 
-  // Obtiene el nombre de usuario guardado
   Future<String?> _obtenerNombreUsuario() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('userData')) {

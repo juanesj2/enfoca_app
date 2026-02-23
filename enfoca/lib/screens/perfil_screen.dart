@@ -6,41 +6,58 @@ import 'grupos/mis_grupos_screen.dart'; // Importamos la pantalla de grupos
 import 'logros/logros_screen.dart'; // Pantalla de logros
 
 // ==========================================
-// PANTALLA DE PERFIL DE USUARIO
+// PANTALLA DE PERFIL Y AJUSTES DE CUENTA
 // ==========================================
+// Esta pantalla es puramente de lectura (StatelessWidget) ya que no manipula
+// flujos de texto asíncronos en vivo como los de Login. Su estado depende enteramente
+// del Provider global ('AuthService'). Si el usuario en el Provider cambia, este Widget
+// se destruye y se reconstruye mágicamente él solo con los datos nuevos.
 
 class PerfilScreen extends StatelessWidget {
   const PerfilScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el usuario del AuthService
-    // listen: true es el valor por defecto, así que se redibujará si cambia el usuario
+    // ==========================================
+    // EXTRACCIÓN DE DATOS REACTIVOS
+    // ==========================================
+    // Provider.of(context) por defecto tiene "listen: true".
+    // Esto significa que suscribimos esta pantalla al AuthService. Si el usuario
+    // edita su perfil remotamente, o cierra sesión, este Widget entero vuelve a ejecutar su build().
     final user = Provider.of<AuthService>(context).usuario;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi Perfil')),
+      appBar: AppBar(title: const Text('Mi Perfil y Logros')),
+
+      // Control de Fallos Mínimo: ¿Qué pasa si intentamos pintar la pantalla en los
+      // 0.2 milisegundos que el token se ha borrado pero el Navigator no ha saltado al Login?
       body: user == null
           ? const Center(
-              child: Text('No se ha encontrado información del usuario.'),
+              child: Text('Datos de sesión evanescentes. Recargando...'),
             )
           : Column(
               children: [
                 Expanded(
+                  // SingleChildScrollView evita que la pantalla explote (RenderFlex Overflow)
+                  // si el móvil es muy pequeño y el contenido no cabe de alto.
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.center, // Todo centradito
                         children: [
                           const SizedBox(height: 20),
+
                           // ==========================================
-                          // AVATAR DE USUARIO
+                          // 1. AVATAR CIRCULAR (FOTO DE PERFIL / INICIAL)
                           // ==========================================
                           CircleAvatar(
                             radius: 50,
                             backgroundColor: Colors.blueAccent,
                             child: Text(
+                              // Truco para sacar la primera letra del nombre y pasarla a Mayúscula.
+                              // Ternario "? :" por si milagrosamente el nombre viene vacío (fallback a '?')
                               user.name.isNotEmpty
                                   ? user.name[0].toUpperCase()
                                   : '?',
@@ -53,10 +70,10 @@ class PerfilScreen extends StatelessWidget {
                           const SizedBox(height: 20),
 
                           // ==========================================
-                          // TARJETA DE INFORMACIÓN
+                          // 2. DNI / FICHA POLICIAL TÉCNICA (Tarjeta)
                           // ==========================================
                           Card(
-                            elevation: 4,
+                            elevation: 4, // Efecto Sombra (Z-Index alto)
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
                             ),
@@ -64,13 +81,14 @@ class PerfilScreen extends StatelessWidget {
                               padding: const EdgeInsets.all(20.0),
                               child: Column(
                                 children: [
-                                  // Nombre
+                                  // ListTile es un Widget prefabricado por Google IDEAL para listas de ajustes.
+                                  // Tiene "leading" (izquierda), "title" (arriba) y "subtitle" (abajo).
                                   ListTile(
                                     leading: const Icon(
                                       Icons.person,
                                       color: Colors.blue,
                                     ),
-                                    title: const Text('Nombre'),
+                                    title: const Text('Identidad'),
                                     subtitle: Text(
                                       user.name,
                                       style: const TextStyle(
@@ -79,14 +97,13 @@ class PerfilScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  const Divider(),
-                                  // Email
+                                  const Divider(), // Raya fina separadora semitransparente
                                   ListTile(
                                     leading: const Icon(
                                       Icons.email,
                                       color: Colors.blue,
                                     ),
-                                    title: const Text('Correo Electrónico'),
+                                    title: const Text('Correo Institucional'),
                                     subtitle: Text(
                                       user.email,
                                       style: const TextStyle(fontSize: 16),
@@ -100,7 +117,7 @@ class PerfilScreen extends StatelessWidget {
                           const SizedBox(height: 20),
 
                           // ==========================================
-                          // SECCIÓN DE LOGROS (DESAFÍOS)
+                          // 3. EXPOSITOR DE GALARDONES (LOGROS)
                           // ==========================================
                           Card(
                             elevation: 4,
@@ -121,7 +138,7 @@ class PerfilScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 10),
                                       const Text(
-                                        'Mis Logros',
+                                        'Palmarés Fotográfico',
                                         style: TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
@@ -130,26 +147,39 @@ class PerfilScreen extends StatelessWidget {
                                     ],
                                   ),
                                   const Divider(),
+
+                                  // --- CONDICIÓN TERNARIA MULTIPLE ---
+                                  // ¿Tiene logros? Pinto las fichas. ¿No tiene? Pinto texto de ánimo.
                                   if (user.desafios.isEmpty)
                                     const Padding(
                                       padding: EdgeInsets.symmetric(
                                         vertical: 20.0,
                                       ),
                                       child: Text(
-                                        'Aún no has desbloqueado ningún logro.\n¡Sigue usando la app para conseguirlos!',
+                                        'Aún eres un fotógrafo novato.\n¡Levántate y sal ahí fuera a capturar el mundo!',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(color: Colors.grey),
                                       ),
                                     )
                                   else
+                                    // Wrap es un Widget mágico: Coloca elementos en fila (Row) y cuando
+                                    // ya no caben a lo ancho, hace un "retorno de carro" a la fila de abajo.
                                     Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
+                                      spacing:
+                                          10, // Hueco Horizontal entre iconos
+                                      runSpacing:
+                                          10, // Hueco Vertical entre filas
+                                      // Recorremos la lista de logros del usuario convirtiendo cada JSON
+                                      // en un elemento visual (Chip/Botón inerte).
                                       children: user.desafios.map((desafio) {
                                         IconData iconData = Icons.star;
                                         Color iconColor = Colors.orange;
 
-                                        // Asignar íconos basados en el título
+                                        // ==========================================
+                                        // HEURÍSTICA DE ASIGNACIÓN DE ICONOS A CIEGAS
+                                        // ==========================================
+                                        // Como la base de datos de Laravel no manda qué icono debe tener,
+                                        // leemos la palabra clave del título para pintar un dibujo chulo u otro.
                                         if (desafio.titulo.contains('Primer'))
                                           iconData = Icons.looks_one;
                                         else if (desafio.titulo.contains(
@@ -178,7 +208,8 @@ class PerfilScreen extends StatelessWidget {
                                           iconData = Icons.diamond;
 
                                         return Tooltip(
-                                          message: desafio.descripcion,
+                                          message: desafio
+                                              .descripcion, // Sale flotando si dejas el dedo pulsado
                                           margin: const EdgeInsets.symmetric(
                                             horizontal: 20,
                                           ),
@@ -186,6 +217,7 @@ class PerfilScreen extends StatelessWidget {
                                           showDuration: const Duration(
                                             seconds: 3,
                                           ),
+                                          // Un Chip (píldora ovalada visual)
                                           child: Chip(
                                             elevation: 2,
                                             backgroundColor: Colors.white,
@@ -214,9 +246,11 @@ class PerfilScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 // ==========================================
-                // MENÚ DESPLEGABLE DE OPCIONES
+                // 4. PANCOPANEL INFERIOR ROTORIZADO (Menú Desplegable)
                 // ==========================================
+                // Lo dejamos fuera del "Expanded" principal arriba para que se ancle al final del viewport
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20.0,
@@ -228,16 +262,19 @@ class PerfilScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: Theme(
+                      // Truco: Quitamos las antiestéticas rayas divisorias default del ExpansionTile
                       data: Theme.of(
                         context,
                       ).copyWith(dividerColor: Colors.transparent),
+
+                      // ExpansionTile es un cajón que se abre ("Acordeón") al tocarlo
                       child: ExpansionTile(
                         leading: const Icon(
                           Icons.settings,
                           color: Colors.blueGrey,
                         ),
                         title: const Text(
-                          'Opciones de Mi Cuenta',
+                          'Sala de Máquinas',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -248,10 +285,14 @@ class PerfilScreen extends StatelessWidget {
                           vertical: 8.0,
                         ),
                         children: [
-                          // Botón Panel de Administración (Solo visible para admins)
+                          // ==========================================
+                          // 4.1 BOTÓN PRIVILEGIADO (SOLO ADMINISTRADORES)
+                          // ==========================================
+                          // Los 3 Puntos (...) despliegan la lista dentro de otra lista
                           if (user.rol == 'admin') ...[
                             SizedBox(
-                              width: double.infinity,
+                              width:
+                                  double.infinity, // Ancho 100% de lado a lado
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blueGrey,
@@ -265,10 +306,11 @@ class PerfilScreen extends StatelessWidget {
                                 ),
                                 icon: const Icon(Icons.admin_panel_settings),
                                 label: const Text(
-                                  'Panel de administración',
+                                  'Cerebro Matriz (Panel de Admin)',
                                   style: TextStyle(fontSize: 18),
                                 ),
                                 onPressed: () {
+                                  // Empuja el Panel Admin encima en la pila
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -281,7 +323,10 @@ class PerfilScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 15),
                           ],
-                          // Botón Mis Grupos
+
+                          // ==========================================
+                          // 4.2 BOTÓN REDUNDANTE GRUPOS (YA ACCESIBLE)
+                          // ==========================================
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -297,7 +342,7 @@ class PerfilScreen extends StatelessWidget {
                               ),
                               icon: const Icon(Icons.group),
                               label: const Text(
-                                'Mis Grupos',
+                                'Explorar Círculos (Grupos)',
                                 style: TextStyle(fontSize: 18),
                               ),
                               onPressed: () {
@@ -312,7 +357,10 @@ class PerfilScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 15),
-                          // Botón Mis Logros
+
+                          // ==========================================
+                          // 4.3 BOTÓN DETALLES LOGROS
+                          // ==========================================
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -328,7 +376,7 @@ class PerfilScreen extends StatelessWidget {
                               ),
                               icon: const Icon(Icons.emoji_events),
                               label: const Text(
-                                'Mis Logros',
+                                'Salón de la Fama (Logros Detalle)',
                                 style: TextStyle(fontSize: 18),
                               ),
                               onPressed: () {
@@ -342,7 +390,10 @@ class PerfilScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 15),
-                          // Botón de Cerrar Sesión
+
+                          // ==========================================
+                          // 4.4 BOTÓN DESTRUXIVO (CERRAR SESIÓN / LOGOUT)
+                          // ==========================================
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -358,10 +409,13 @@ class PerfilScreen extends StatelessWidget {
                               ),
                               icon: const Icon(Icons.logout),
                               label: const Text(
-                                'Cerrar Sesión',
+                                'Huida de Emergencia (Cerrar Sesión)',
                                 style: TextStyle(fontSize: 18),
                               ),
                               onPressed: () {
+                                // Llamar al servicio y aniquilar el Token de memoria y disco (SharedPreferences).
+                                // Automáticamente el 'main.dart' lo detectará gracias al notifyListeners()
+                                // y expulsará al usuario a la Login Screen sin ningún Navigator manual aquí.
                                 Provider.of<AuthService>(
                                   context,
                                   listen: false,

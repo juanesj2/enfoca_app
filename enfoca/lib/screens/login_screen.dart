@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 
 // ==========================================
-// PANTALLA DE LOGIN
+// PANTALLA DE INICIO DE SESIÓN (LOGIN)
 // ==========================================
+// Esta es la primera barrera de entrada a la aplicación.
+// Recoge un Email y una Contraseña, y los envía al AuthService para conseguir un Token.
 
 class LoginScreen extends StatefulWidget {
-  // Constante para la ruta de navegación
+  // Constante para la ruta de navegación nombrada en main.dart
   static const routeName = '/login';
 
   @override
@@ -16,47 +18,60 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // ==========================================
-  // ESTADO (STATE)
+  // ESTADO Y CONTROLADORES (STATE)
   // ==========================================
-  final _formKey = GlobalKey<FormState>(); // Clave para validar el formulario
 
-  // Controladores de texto para leer los inputs
+  // Llave Maestra del Formulario. Nos permite acceder desde el código
+  // al estado colectivo de todas las cajas de texto y disparar sus validaciones.
+  final _formKey = GlobalKey<FormState>();
+
+  // Tubos de conexión: Leen y escriben en tiempo real lo que el usuario teclea
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  var _isLoading = false; // Controla el spinner de carga
+  // Bandera de carga: Cambia a 'true' cuando estamos esperando respuesta de Internet,
+  // y hace que el botón de Login desaparezca y muestre un Spinner giratorio.
+  var _isLoading = false;
 
   // ==========================================
-  // LÓGICA DE NEGOCIO
+  // LÓGICA DE NEGOCIO (EVENTOS)
   // ==========================================
 
+  // Disparado al pulsar el botón "Entrar"
   Future<void> _iniciarSesion() async {
-    // 1. Validamos el formulario (revisa los validators de los TextFormFields)
+    // 1. Validamos el formulario completo.
+    // Esto ejecuta la función 'validator' de cada TextFormField.
+    // Si alguno falla (ej: password muy corta o email sin arroba), esto devuelve false.
     if (!_formKey.currentState!.validate()) {
-      return;
+      return; // Cortocircuito: No hacemos la petición a Internet si los datos están mal.
     }
 
-    // 2. Activamos el modo carga
+    // 2. Activamos la Animación de Carga
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 3. Llamamos al servicio de autenticación
+      // 3. Llamada Asíncrona al puente de red (AuthService)
+      // listen: false es obligatorio cuando llamamos a funciones del Provider
+      // fuera de un método Build (estamos dentro de un callback de botón).
       await Provider.of<AuthService>(
         context,
         listen: false,
       ).iniciarSesion(_emailController.text, _passwordController.text);
 
-      // Si el login es exitoso, main.dart detectará el cambio de estado
-      // y nos llevará al Home automáticamente.
+      // Si todo fue bien (Status 200 OK de Laravel):
+      // No necesitamos hacer Navigator.push(), ya que el `main.dart`
+      // está escuchando (Consumer) los cambios del AuthService y al detectar
+      // que ahora el token existe, redibujará la app mostrándonos el HomeScreen de golpe.
     } catch (error) {
-      // 4. Si algo falla, mostramos una alerta
+      // 4. Fallo Categórico (Ej: Contraseña mala o Servidor caído)
+      // Mostramos un Cuadro de Diálogo Flotante (Popup)
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Error'),
-          // Limpiamos el mensaje de excepción para que sea más amigable
+          title: const Text('Credenciales Rechazadas'),
+          // Limpiamos la basura del mensaje de Dart para que se lea como humano:
           content: Text(
             error
                 .toString()
@@ -65,101 +80,114 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Aceptar'),
+              child: const Text('Entendido'),
               onPressed: () {
-                Navigator.of(ctx).pop(); // Cerramos el diálogo
+                Navigator.of(ctx).pop(); // Destruye el Popup flotante
               },
             ),
           ],
         ),
       );
-      // Desactivamos la carga para permitir reintentar
+    }
+
+    // 5. Pase lo que pase, si llegamos aquí (normalmente por error),
+    // desactivamos el Spinner de carga para dejar al usuario re-intentarlo.
+    // Nota: Si fue éxito rotundo, este código ni se ve porque el Navigator cambia de pantalla.
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
     }
   }
 
+  // Prevención de Fugas de Memoria (Memory Leaks)
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   // ==========================================
-  // BUILD (CONSTRUCCIÓN DE LA UI)
+  // BUILD (CONSTRUCCIÓN DEL ÁRBOL VISUAL)
   // ==========================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // El cuerpo se extiende detrás del AppBar
-      backgroundColor:
-          Colors.transparent, // Opcional, si hubiera imagen de fondo
+      // Truco de UI: Hace que el gradiente/fondo invada el espacio de la barra superior
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
 
       appBar: AppBar(title: const Text('Iniciar Sesión')),
 
       // ==========================================
-      // CUERPO DEL FORMULARIO
+      // CUERPO CENTRAL (Center widget lo centra en X e Y)
       // ==========================================
       body: Center(
         child: SingleChildScrollView(
+          // Permite hacer scroll si sale el teclado nativo del móvil y tapa la pantalla
           child: Card(
             margin: const EdgeInsets.all(24.0),
-            elevation: 8, // Sombra
+            elevation: 8, // Da un efecto de levitación material design
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
               padding: const EdgeInsets.all(24.0),
+
+              // ==========================================
+              // INICIO DEL FORMULARIO
+              // ==========================================
               child: Form(
-                key: _formKey, // Conectamos la validación
+                key: _formKey, // Enlazamos el estado con la UI
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min, // Ocupa solo el espacio necesario
+                  mainAxisSize: MainAxisSize
+                      .min, // Se encoge a su contenido, no abarca todo el alto
                   children: [
-                    // ==========================================
-                    // LOGO
-                    // ==========================================
+                    // --- LOGO SUPERIOR ---
                     Image.network(
                       'https://raw.githubusercontent.com/juanesj2/Enfoca_ProyectoFinal/refs/heads/main/public/imagenes/logo_ENFOKA-sin-fondo.png',
                       height: 250,
+                      // Fallback si GitHub se cae o no hay Wifi:
                       errorBuilder: (context, error, stackTrace) =>
                           const Icon(Icons.image_not_supported, size: 100),
                     ),
                     const SizedBox(height: 20),
 
-                    // ==========================================
-                    // INPUT EMAIL
-                    // ==========================================
+                    // --- INPUT EMAIL ---
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Correo Electrónico',
                       ),
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType
+                          .emailAddress, // Muestra el teclado con la @ rápido en el móvil
+                      // Regla de Negocio
                       validator: (value) {
                         if (value!.isEmpty || !value.contains('@')) {
-                          return 'Email inválido';
+                          return 'Email no válido, debe contener @';
                         }
-                        return null; // Null significa "sin error"
+                        return null; // Null en Dart = OK, Validado
                       },
                     ),
 
-                    // ==========================================
-                    // INPUT CONTRASEÑA
-                    // ==========================================
+                    // --- INPUT CONTRASEÑA ---
                     TextFormField(
                       controller: _passwordController,
                       decoration: const InputDecoration(
                         labelText: 'Contraseña',
                       ),
-                      obscureText: true, // Oculta el texto
+                      obscureText: true, // Pone asteriscos/puntos *****
                       validator: (value) {
                         if (value!.isEmpty || value.length < 5) {
-                          return 'Contraseña muy corta';
+                          return 'Tu contraseña debe medir al menos 5 caracteres';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
-                    // ==========================================
-                    // BOTÓN DE ACCIÓN
-                    // ==========================================
+                    // --- MODO MULTIVERSO: SPINNER VS BOTÓN ---
                     if (_isLoading)
                       const CircularProgressIndicator()
                     else
@@ -168,14 +196,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('Entrar'),
                       ),
 
-                    // ==========================================
-                    // ENLACE A REGISTRO
-                    // ==========================================
+                    // --- BOTÓN SECUNDARIO (TEXTBUTTON) ---
                     const SizedBox(height: 10),
                     TextButton(
-                      child: const Text('¿No tienes cuenta? Regístrate'),
+                      child: const Text('¿No tienes cuenta? Únete a Enfoca'),
                       onPressed: () {
-                        // Navegamos a la pantalla de registro
+                        // Empuja (Push) una nueva pantalla al historial de navegación.
+                        // Arriba a la izquierda aparecerá la clásica flechita 'Back' para volver aquí.
                         Navigator.of(context).pushNamed('/register');
                       },
                     ),

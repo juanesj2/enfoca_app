@@ -5,8 +5,10 @@ import '../../models/user.dart';
 import '../../services/auth_service.dart';
 
 // ==========================================
-// PANTALLA DE CONTROL DE USUARIOS
+// REGISTRO CIVIL: CONTROL DE USUARIOS
 // ==========================================
+// Permite al Administrador buscar, editar roles (hacer admin a otros),
+// vetar (banear temporal o permanentemente) y eliminar cuentas del sistema.
 
 class UsersControlScreen extends StatefulWidget {
   const UsersControlScreen({super.key});
@@ -17,39 +19,46 @@ class UsersControlScreen extends StatefulWidget {
 
 class _UsersControlScreenState extends State<UsersControlScreen> {
   // ==========================================
-  // ESTADO
+  // ESTADO INTERNO (MEMORIA A CORTO PLAZO)
   // ==========================================
-  bool _isLoading = false;
-  List<User> _users = [];
+  bool _isLoading = false; // Engranaje giratorio de red
+  List<User> _users = []; // Toda la población mundial descargada
+
+  // Archiva lo que el administrador teclee en el buscador:
   String _searchQuery = '';
+
+  // Controlador especial para mover la tabla de lado a lado (Desplazamiento Horizontal)
   final ScrollController _horizontalScrollController = ScrollController();
 
   // ==========================================
-  // CICLO DE VIDA
+  // MOTOR DE ARRANQUE Y APAGADO
   // ==========================================
 
   @override
   void initState() {
     super.initState();
+    // Reclutar a todos los ciudadanos nada más abrir el panel.
     _cargarUsuarios();
   }
 
   @override
   void dispose() {
+    // Liberar recursos de memoria al cerrar la pantalla (Como cerrar un grifo)
     _horizontalScrollController.dispose();
     super.dispose();
   }
 
   // ==========================================
-  // MÉTODOS PRIVADOS
+  // COMUNICACIONES CON EL MINISTERIO (LARAVEL)
   // ==========================================
 
-  // Carga la lista de usuarios desde el servicio
+  // --- DESCARGAR CENSO GLOBAL ---
   Future<void> _cargarUsuarios() async {
     setState(() => _isLoading = true);
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final users = await authService.obtenerUsuarios();
+
       setState(() {
         _users = users;
         _isLoading = false;
@@ -57,36 +66,38 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al cargar usuarios: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al contactar con el padrón: $e')),
+        );
       }
     }
   }
 
-  // Eliminar usuario con confirmación
+  // --- SENTENCIA DE MUERTE DE UNA CUENTA ---
   Future<void> _eliminarUsuario(int id) async {
+    // Dialogo de confirmación por si se le resbala el dedo al Admin
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar usuario?'),
+        title: const Text('¿Erradicar ciudadano?'),
         content: const Text(
-          'Esta acción no se puede deshacer. Se borrarán todos sus datos y fotos.',
+          'Esta acción no se puede deshacer. Se borrarán todos sus datos, fotos, y recuerdos.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: const Text('Tener Piedad'),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
+            child: const Text('Liquidar'),
           ),
         ],
       ),
     );
 
+    // ¿El Juez dictó veredicto de muerte?
     if (confirmar == true) {
       setState(() => _isLoading = true);
       try {
@@ -94,46 +105,61 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
           context,
           listen: false,
         ).eliminarUsuario(id);
-        await _cargarUsuarios(); // Recargar lista
+
+        await _cargarUsuarios(); // Recargar la tabla sin el difunto
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Usuario eliminado correctamente')),
+            const SnackBar(content: Text('Ciudadano eliminado del sistema')),
           );
         }
       } catch (e) {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar usuario: $e')),
+            SnackBar(content: Text('Error al ejecutar la liquidación: $e')),
           );
         }
       }
     }
   }
 
-  // Mostrar diálogo de edición (Rol y Veto)
+  // ==========================================
+  // TRIBUNAL DE MODIFICACIÓN: (BANEOS Y ROLES)
+  // ==========================================
+  // Muestra un formulario en ventana emergente (Modal)
   void _mostrarDialogoEdicion(User user) {
-    // Variables temporales para el formulario
+    // Clonamos datos actuales a variables temporales locales
+    // Si cancela a mitad de formulario, no corrompemos nada.
     String rolSeleccionado = user.rol;
     bool vetadoSeleccionado = user.vetado;
+
+    // El Baneo Mágico: Por defecto es permanente, pero se puede poner temporal
     bool esVetoPermanente = true;
     DateTime? fechaVetoSeleccionada;
 
+    // StatefulBuilder es crucial: hace que el Checkbox "reaccione" solo dentro de la cajita.
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: Text('Editar Usuario: ${user.name}'),
+            title: Text('Expediente de: ${user.name}'),
             content: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min, // Que el popup mida lo justo y necesario
               children: [
-                // Selector de Rol
+                // --- SELECTOR DE ROL (Dropdown) ---
                 DropdownButtonFormField<String>(
                   value: rolSeleccionado,
-                  decoration: const InputDecoration(labelText: 'Rol'),
+                  decoration: const InputDecoration(
+                    labelText: 'Poder Jerárquico',
+                  ),
+                  // Opciones hardcodeadas (De usuario raso a semidiós)
                   items: ['usuario', 'admin'].map((rol) {
-                    return DropdownMenuItem(value: rol, child: Text(rol));
+                    return DropdownMenuItem(
+                      value: rol,
+                      child: Text(rol.toUpperCase()),
+                    );
                   }).toList(),
                   onChanged: (val) {
                     if (val != null) {
@@ -142,37 +168,45 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                // Switch de Veto
+
+                // --- BOTÓN DEL PANICO (Baneo Total) ---
                 SwitchListTile(
-                  title: const Text('¿Vetado?'),
-                  subtitle: const Text('Impide el acceso al usuario'),
+                  title: const Text('¿Cárcel (Ban)?'),
+                  subtitle: const Text(
+                    'Bloquea su entrada a la app por completo',
+                  ),
                   value: vetadoSeleccionado,
                   onChanged: (val) {
                     setDialogState(() => vetadoSeleccionado = val);
                   },
                 ),
+
+                // --- SI ESTÁ BANEADO, PREGUNTAMOS LA CONDENA ---
                 if (vetadoSeleccionado) ...[
                   const SizedBox(height: 10),
                   Row(
                     children: [
+                      // Radio Cadena Perpetua
                       Expanded(
                         child: RadioListTile<bool>(
                           title: const Text(
-                            'Para siempre',
+                            'Cadena Perpetua',
                             style: TextStyle(fontSize: 14),
                           ),
                           value: true,
-                          groupValue: esVetoPermanente,
+                          groupValue:
+                              esVetoPermanente, // Si coinciden, se pinta azul
                           onChanged: (val) {
                             setDialogState(() => esVetoPermanente = val!);
                           },
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
+                      // Radio Castigo Temporal
                       Expanded(
                         child: RadioListTile<bool>(
                           title: const Text(
-                            'Hasta fecha',
+                            'Castigo Temporal (Fecha)',
                             style: TextStyle(fontSize: 14),
                           ),
                           value: false,
@@ -185,25 +219,31 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                       ),
                     ],
                   ),
+
+                  // --- CALENDARIO DEL JUEZ ---
+                  // Solo sale si elegimos "Castigo Temporal" (false)
                   if (!esVetoPermanente)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         fechaVetoSeleccionada == null
-                            ? 'Seleccionar fecha...'
-                            : 'Hasta: ${fechaVetoSeleccionada!.toLocal().toString().split(' ')[0]}',
+                            ? 'Abrir calendario...'
+                            // Extrae solo "2024-05-12" de la mega-fecha ISO
+                            : 'Libre el: ${fechaVetoSeleccionada!.toLocal().toString().split(' ')[0]}',
                         style: const TextStyle(fontSize: 14),
                       ),
                       trailing: const Icon(Icons.calendar_today),
                       onTap: () async {
+                        // Invoca el calendario nativo de Android/iOS/Web
                         final date = await showDatePicker(
                           context: context,
                           initialDate: DateTime.now().add(
-                            const Duration(days: 1),
+                            const Duration(days: 1), // Mañana por defecto
                           ),
-                          firstDate: DateTime.now(),
+                          firstDate:
+                              DateTime.now(), // No puedes banear en el pasado
                           lastDate: DateTime.now().add(
-                            const Duration(days: 3650),
+                            const Duration(days: 3650), // Máximo 10 años
                           ),
                         );
                         if (date != null) {
@@ -214,29 +254,37 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                 ],
               ],
             ),
+
+            // --- BOTONES DE ENVÍO Y CÁLCULO FINAL ---
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancelar'),
+                onPressed: () => Navigator.of(ctx).pop(), // Cierra modal
+                child: const Text('Atrás'),
               ),
               ElevatedButton(
                 onPressed: () async {
                   String? fechaVetoStr;
+
+                  // Validación: Si lo banea temporalmente sin poner fecha, bloqueamos el guardado.
                   if (vetadoSeleccionado && !esVetoPermanente) {
                     if (fechaVetoSeleccionada == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Debes seleccionar una fecha de veto'),
+                          content: Text(
+                            'Debes seleccionar un día de salida de prisión',
+                          ),
                         ),
                       );
-                      return;
+                      return; // Cortocircuito, no avanza
                     }
+                    // Formatear la fecha al estilo SQL: "YYYY-MM-DD"
                     fechaVetoStr = fechaVetoSeleccionada!
                         .toIso8601String()
                         .split('T')[0];
                   }
 
-                  Navigator.of(ctx).pop();
+                  Navigator.of(ctx).pop(); // Esconde popup
+                  // Manda el cohete al servidor
                   _guardarCambiosUsuario(
                     user.id,
                     rolSeleccionado,
@@ -244,7 +292,7 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                     fechaVeto: fechaVetoStr,
                   );
                 },
-                child: const Text('Guardar'),
+                child: const Text('Ejecutar Sentencia'),
               ),
             ],
           );
@@ -253,12 +301,12 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
     );
   }
 
-  // Guardar cambios de edición
+  // --- TRANSICIÓN A LA BASE DE DATOS ---
   Future<void> _guardarCambiosUsuario(
     int id,
     String rol,
     bool vetado, {
-    String? fechaVeto,
+    String? fechaVeto, // Argumento opcional por nombre ({})
   }) async {
     setState(() => _isLoading = true);
     try {
@@ -266,60 +314,77 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
         context,
         listen: false,
       ).editarUsuario(id, rol, vetado, fechaVeto: fechaVeto);
-      await _cargarUsuarios(); // Recargar lista
+
+      await _cargarUsuarios(); // Recargar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuario actualizado correctamente')),
+          const SnackBar(
+            content: Text('Decreto administrativo aplicado con éxito'),
+          ),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al actualizar usuario: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Rebelión en el servidor: $e')));
       }
     }
   }
 
   // ==========================================
-  // BUILD
+  // ENSAMBLAJE VISUAL (BUILD)
   // ==========================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Control de Usuarios')),
+      appBar: AppBar(title: const Text('Ministerio de Identidad (Usuarios)')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _users.isEmpty
-          ? const Center(child: Text('No hay usuarios registrados.'))
+          ? const Center(child: Text('Planeta deshabitado. 0 Usuarios.'))
+          // COLUMNA PRINCIPAL que dividimos en Buscador (Arriba) y Tabla (Centro)
           : Column(
               children: [
-                // Barra de búsqueda
+                // ==========================================
+                // BARRA DE BÚSQUEDA DEL FBI
+                // ==========================================
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
                     decoration: InputDecoration(
-                      labelText: 'Buscar por nombre o email...',
-                      prefixIcon: const Icon(Icons.search),
+                      labelText: 'Buscar por nombre o correo...',
+                      prefixIcon: const Icon(Icons.person_search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade100,
                     ),
+                    // Cada vez que pulsas una tecla, actualiza la variable "searchQuery"
+                    // Lo cual dispara un setState masivo, reescribiendo la tabla en vivo.
                     onChanged: (value) {
                       setState(() {
-                        _searchQuery = value.toLowerCase();
+                        _searchQuery = value
+                            .toLowerCase(); // Ignorar Mayúsculas
                       });
                     },
                   ),
                 ),
-                // Tabla de datos
+
+                // ==========================================
+                // HOJA DE CÁLCULO EXTREMA (DATA TABLE)
+                // ==========================================
+                // "Expanded" es vital: le dice a la tabla "Ocupa todo el alto que sobre"
                 Expanded(
+                  // LayoutBuilder + ConstrainedBox es un truco oscuro de Flutter Web/Desktop
+                  // Permite que la tabla ocupe su ancho mínimo si estamos en móvil,
+                  // pero si estamos en Pantalla Panorámica, se estire a los bordes.
                   child: LayoutBuilder(
                     builder: (context, constraints) => ScrollConfiguration(
+                      // Permite arrastrar la tabla lateralmente usando el Ratón (Cosas de Web)
                       behavior: ScrollConfiguration.of(context).copyWith(
                         dragDevices: {
                           PointerDeviceKind.touch,
@@ -327,8 +392,10 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                         },
                       ),
                       child: Scrollbar(
+                        // Barra visual inferior
                         controller: _horizontalScrollController,
                         thumbVisibility: true,
+                        // Primer Scroll: De Derecha a Izquierda
                         child: SingleChildScrollView(
                           controller: _horizontalScrollController,
                           scrollDirection: Axis.horizontal,
@@ -336,12 +403,14 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                             constraints: BoxConstraints(
                               minWidth: constraints.maxWidth,
                             ),
+                            // Segundo Scroll: De Arriba Abajo
                             child: SingleChildScrollView(
+                              // Datatable estándar de Material UI (Filas y Columnas rígidas)
                               child: DataTable(
                                 columns: const [
                                   DataColumn(
                                     label: Text(
-                                      'Nombre',
+                                      'Identidad',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -349,7 +418,7 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'Email',
+                                      'Correo',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -357,7 +426,7 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'Rol',
+                                      'Poder',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -365,7 +434,7 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'Veto',
+                                      'Alerta Civil',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -373,13 +442,18 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                   ),
                                   DataColumn(
                                     label: Text(
-                                      'Acciones',
+                                      'Acciones Legales',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
                                 ],
+
+                                // EL FILTRO MAGICO:
+                                // Tomamos todos los usuarios.
+                                // Con `where` revisamos si el nombre CONTIENE las letras del buscador.
+                                // Con `map` transformamos al superviviente en un DataRow (Fila).
                                 rows: _users
                                     .where(
                                       (u) =>
@@ -395,6 +469,8 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                         cells: [
                                           DataCell(Text(user.name)),
                                           DataCell(Text(user.email)),
+
+                                          // Celda "Rol": Un pastillero (Container) de colores. Admin es más oscuro.
                                           DataCell(
                                             Container(
                                               padding:
@@ -417,6 +493,8 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                               ),
                                             ),
                                           ),
+
+                                          // Celda "Vetado": Semáforo Verde (Activo) y Rojo Cuidado (Vetado)
                                           DataCell(
                                             Container(
                                               padding:
@@ -433,36 +511,39 @@ class _UsersControlScreenState extends State<UsersControlScreen> {
                                               ),
                                               child: Text(
                                                 user.vetado
-                                                    ? 'Vetado'
-                                                    : 'Activo',
+                                                    ? 'Muro Bloqueado'
+                                                    : 'Ciudadano Libre',
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                 ),
                                               ),
                                             ),
                                           ),
+
+                                          // Celda Botonera
                                           DataCell(
                                             Row(
                                               children: [
                                                 IconButton(
                                                   icon: const Icon(
                                                     Icons.edit,
-                                                    color: Colors.blue,
+                                                    color: Colors.blue, // Lápiz
                                                   ),
                                                   onPressed: () =>
                                                       _mostrarDialogoEdicion(
                                                         user,
                                                       ),
-                                                  tooltip: 'Editar',
+                                                  tooltip: 'Editar Poderes',
                                                 ),
                                                 IconButton(
                                                   icon: const Icon(
                                                     Icons.delete,
-                                                    color: Colors.red,
+                                                    color: Colors.red, // Basura
                                                   ),
                                                   onPressed: () =>
                                                       _eliminarUsuario(user.id),
-                                                  tooltip: 'Eliminar',
+                                                  tooltip:
+                                                      'Eliminar del Sistema',
                                                 ),
                                               ],
                                             ),
