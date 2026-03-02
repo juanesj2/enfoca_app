@@ -42,22 +42,29 @@ class GrupoService with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<dynamic> gruposJson = data['data'];
 
-        _misGrupos = gruposJson.map((json) {
-          try {
-            return Grupo.fromJson(json);
-          } catch (e) {
-            return Grupo(
-              id: 0,
-              nombre: 'Error',
-              codigoInvitacion: '',
-              creadoPor: 0,
-              usuarios: [],
-              createdAt: DateTime.now(),
-            );
-          }
-        }).toList();
+        if (data is Map<String, dynamic> &&
+            data.containsKey('data') &&
+            data['data'] is List) {
+          final List<dynamic> gruposJson = data['data'];
+
+          _misGrupos = gruposJson.map((json) {
+            try {
+              return Grupo.fromJson(json);
+            } catch (e) {
+              return Grupo(
+                id: 0,
+                nombre: 'Error',
+                codigoInvitacion: '',
+                creadoPor: 0,
+                usuarios: [],
+                createdAt: DateTime.now(),
+              );
+            }
+          }).toList();
+        } else {
+          _misGrupos = [];
+        }
 
         notifyListeners();
       } else {

@@ -200,7 +200,7 @@ class _MisGruposScreenState extends State<MisGruposScreen> {
                           ),
                           const SizedBox(height: 20),
                           const Text(
-                            'No perteneces a ningún grupo.',
+                            'Aún no tienes grupos.',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                           const SizedBox(height: 20),
