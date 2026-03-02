@@ -2,89 +2,58 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/desafio_service.dart';
 
-// ==========================================
-// SALÓN DE LA FAMA: PANTALLA DE LOGROS
-// ==========================================
-// Esta pantalla muestra todos los desafíos disponibles en la aplicación.
-// Compara la lista total con los logros que el usuario ya ha desbloqueado,
-// iluminando los conseguidos y ensombreciendo los pendientes.
-
+// Pantalla para mostrar los logros y desafíos del usuario
 class LogrosScreen extends StatefulWidget {
-  const LogrosScreen({Key? key}) : super(key: key);
+  const LogrosScreen({super.key});
 
   @override
-  _LogrosScreenState createState() => _LogrosScreenState();
+  State<LogrosScreen> createState() => _LogrosScreenState();
 }
 
 class _LogrosScreenState extends State<LogrosScreen> {
-  // ==========================================
-  // ESTADO INTERNO
-  // ==========================================
-  bool _isLoading = true; // Rueda de carga inicial
+  bool _isLoading = true;
 
-  // ==========================================
-  // CICLO DE VIDA (MOTOR)
-  // ==========================================
   @override
   void initState() {
     super.initState();
-    // Nada más abrir la pantalla, pedimos los datos al servidor
     _cargarLogros();
   }
 
-  // ==========================================
-  // COMUNICACIÓN CON EL SERVIDOR
-  // ==========================================
   Future<void> _cargarLogros() async {
     setState(() => _isLoading = true);
     try {
-      // El "provider" hace la llamada mágica a Laravel a través de DesafioService
-      // "cargarTodo()" descarga tanto el catálogo total como los del usuario actual.
       await Provider.of<DesafioService>(context, listen: false).cargarTodo();
     } catch (e) {
       if (mounted) {
-        // Tolerancia a fallos: Si internet se corta, avisamos con un banner inferior
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
       }
     } finally {
       if (mounted) {
-        // Pase lo que pase, apagamos la rueda de carga
         setState(() => _isLoading = false);
       }
     }
   }
 
-  // ==========================================
-  // DISEÑO VISUAL (BUILD)
-  // ==========================================
   @override
   Widget build(BuildContext context) {
-    // Nos suscribimos a los datos del servicio de desafíos
     final ds = Provider.of<DesafioService>(context);
-
-    // 1. Catálogo completo de logros posibles en el juego
     final todos = ds.todosLosDesafios;
-
-    // 2. Extraemos ÚNICAMENTE las IDs de los logros que el usuario YA TIENE.
-    // Usamos ".toSet()" para hacer búsquedas súper rápidas luego.
     final conseguidosId = ds.misDesafios.map((e) => e.id).toSet();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Logros'),
-        backgroundColor: Colors.tealAccent.shade700, // Verde trofeo
+        backgroundColor: Colors.tealAccent.shade700,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              // Si el usuario arrastra hacia abajo, vuelve a forzar la descarga de datos
               onRefresh: _cargarLogros,
               child: todos.isEmpty
                   ? Center(
-                      // PANTALLA VACÍA: Si no hay logros programados en la BD
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -103,7 +72,7 @@ class _LogrosScreenState extends State<LogrosScreen> {
                           ),
                           const SizedBox(height: 10),
                           const Text(
-                            'Vuelve a cargar o comprueba el servidor.',
+                            'Vuelve a intentarlo más tarde.',
                             style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                           const SizedBox(height: 20),
@@ -116,56 +85,46 @@ class _LogrosScreenState extends State<LogrosScreen> {
                       ),
                     )
                   : GridView.builder(
-                      // MATRIZ DE DE TROFEOS (2 columnas)
                       padding: const EdgeInsets.all(15),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2, // 2 trofeos por cada fila
-                            crossAxisSpacing:
-                                15, // Espacio horizontal entre columnas
-                            mainAxisSpacing: 15, // Espacio vertical entre filas
-                            childAspectRatio:
-                                0.85, // Proporción (Un poco más alto que ancho)
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 15,
+                            mainAxisSpacing: 15,
+                            childAspectRatio: 0.85,
                           ),
-                      itemCount:
-                          todos.length, // Rellenar con todos los del sistema
+                      itemCount: todos.length,
                       itemBuilder: (ctx, i) {
-                        final desafio =
-                            todos[i]; // El trofeo que estamos pintando
-
-                        // ¿Lo tiene el usuario? (Compara su ID contra la lista de conseguidos)
+                        final desafio = todos[i];
                         final bool completado = conseguidosId.contains(
                           desafio.id,
                         );
 
-                        // ==========================================
-                        // LÓGICA DE ICONOGRAFÍA DINÁMICA
-                        // ==========================================
-                        // Buscamos palabras clave en el título para ponerle un icono acorde.
-                        IconData iconData =
-                            Icons.emoji_events; // Copa por defecto
+                        IconData iconData = Icons.emoji_events;
                         if (desafio.titulo.contains('Primer')) {
                           iconData = Icons.looks_one;
                         } else if (desafio.titulo.contains('Cinco')) {
                           iconData = Icons.looks_5;
-                        } else if (desafio.titulo.contains('gusta')) {
+                        } else if (desafio.titulo.toLowerCase().contains(
+                          'gusta',
+                        )) {
                           iconData = Icons.favorite;
-                        } else if (desafio.titulo.contains('Popular')) {
+                        } else if (desafio.titulo.toLowerCase().contains(
+                          'popular',
+                        )) {
                           iconData = Icons.local_fire_department;
-                        } else if (desafio.titulo.contains('Social')) {
+                        } else if (desafio.titulo.toLowerCase().contains(
+                          'social',
+                        )) {
                           iconData = Icons.forum;
-                        } else if (desafio.titulo.contains('Colecc')) {
+                        } else if (desafio.titulo.toLowerCase().contains(
+                          'colecc',
+                        )) {
                           iconData = Icons.diamond;
                         }
 
-                        // ==========================================
-                        // CARTA INDIVIDUAL DEL TROFEO
-                        // ==========================================
                         return Card(
-                          // Sombra mayor si lo tienes, plano si está bloqueado
                           elevation: completado ? 4 : 1,
-
-                          // Color vivo si lo tienes, gris pálido si está bloqueado
                           color: completado
                               ? Colors.tealAccent.shade100
                               : Colors.grey.shade200,
@@ -177,7 +136,6 @@ class _LogrosScreenState extends State<LogrosScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // EL ICONO DEL TROFEO
                                 Icon(
                                   iconData,
                                   size: 48,
@@ -186,8 +144,6 @@ class _LogrosScreenState extends State<LogrosScreen> {
                                       : Colors.grey.shade400,
                                 ),
                                 const SizedBox(height: 10),
-
-                                // TÍTULO DEL LOGRO (Ej: "Primeros Pasos")
                                 Text(
                                   desafio.titulo,
                                   textAlign: TextAlign.center,
@@ -200,9 +156,6 @@ class _LogrosScreenState extends State<LogrosScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-
-                                // DESCRIPCIÓN EXPLICATIVA (Ej: "Sube tu primera foto")
-                                // Expanded+Scroll para que no rompa el diseño si el texto es muy largo
                                 Expanded(
                                   child: SingleChildScrollView(
                                     child: Text(
@@ -217,12 +170,7 @@ class _LogrosScreenState extends State<LogrosScreen> {
                                     ),
                                   ),
                                 ),
-
-                                // ==========================================
-                                // ETIQUETA INFERIOR DE ESTADO
-                                // ==========================================
                                 if (completado)
-                                  // Cartel Mágico "Conseguido"
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8.0),
                                     child: Row(
@@ -247,7 +195,6 @@ class _LogrosScreenState extends State<LogrosScreen> {
                                     ),
                                   )
                                 else
-                                  // Candado Frío "Bloqueado"
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8.0),
                                     child: Row(

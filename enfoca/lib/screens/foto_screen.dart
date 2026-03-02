@@ -10,12 +10,7 @@ import '../widgets/photo_item.dart';
 import '../widgets/comentario_item.dart';
 import '../services/photo_service.dart';
 
-// ==========================================
-// PANTALLA DE DETALLE (EL CINE FOTOGRÁFICO)
-// ==========================================
-// Cuando tocas una foto en el muro, esta pantalla se desdobla.
-// Muestra la foto en pantalla completa arriba, y el chat de comentarios debajo.
-
+// Pantalla que muestra el detalle de la foto y sus comentarios
 class PhotoScreen extends StatefulWidget {
   final Fotografia photo; // Recibimos la obra de arte por parámetro
 
@@ -26,28 +21,16 @@ class PhotoScreen extends StatefulWidget {
 }
 
 class _PhotoScreenState extends State<PhotoScreen> {
-  // ==========================================
-  // ESTADO INTERNO (MEMORIA RAM DE LA PANTALLA)
-  // ==========================================
-  List<Comentario> _comentarios = []; // Buzón de mensajes
-  bool _isLoading = true; // Telón de carga azul
-  int?
-  _currentUserId; // ¿Quién soy yo? (Para saber si el botón "Borrar" sale o no)
+  List<Comentario> _comentarios = [];
+  bool _isLoading = true;
+  int? _currentUserId;
 
-  // Teclado virtual
   final _commentController = TextEditingController();
-
-  // ==========================================
-  // IGNICIÓN DE LA PANTALLA (INIT)
-  // ==========================================
 
   @override
   void initState() {
     super.initState();
-    // En cuanto la pantalla nace, mandamos 2 cartas simultáneas (Asíncronas):
-    // 1. Averiguar quién tiene el móvil en la mano.
     _obtenerUsuarioActual();
-    // 2. Descargar el historial de chat de esta foto.
     _obtenerComentarios();
   }
 
@@ -57,16 +40,12 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
   // --- OBTENER INQUILINO ACTUAL ---
   Future<void> _obtenerUsuarioActual() async {
-    // Abrimos el cajón de la mesita de noche del móvil
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('userData'))
-      return; // No hay nadie logueado (Imposible pero seguro)
+    if (!prefs.containsKey('userData')) return;
 
-    // Decodifica el maletín JSON guardado
     final extractedUserData =
         json.decode(prefs.getString('userData')!) as Map<String, dynamic>;
 
-    // 1. Camino Rápido (Caché Oculta): Si ya guardamos el ID ayer, úsalo.
     if (extractedUserData.containsKey('userId')) {
       if (!mounted) return;
       setState(() {
@@ -75,8 +54,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
       return;
     }
 
-    // 2. Camino Lento (API Rest): Si es la primera vez, pregúntale a Laravel.
-    final token = extractedUserData['token']; // Llave maestra
+    final token = extractedUserData['token'];
     final url = Uri.parse('http://enfoca.alwaysdata.net/api/user');
     try {
       final response = await http.get(
@@ -87,29 +65,25 @@ class _PhotoScreenState extends State<PhotoScreen> {
         },
       );
 
-      // 200 OK: La puerta del servidor se abrió
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
-        final userId = userData['data']['id']; // Buceo en el JSON
+        final userId = userData['data']['id'];
 
-        if (!mounted)
-          return; // Si el usuario cerró la pantalla rápida, no hagas crash
+        if (!mounted) return;
         setState(() {
-          _currentUserId = userId; // Asignación visual
+          _currentUserId = userId;
         });
 
-        // Memorizamos en el disco duro para no volver a preguntar mañana
         extractedUserData['userId'] = userId;
         extractedUserData['userName'] = userData['data']['name'];
         extractedUserData['userEmail'] = userData['data']['email'];
         await prefs.setString('userData', json.encode(extractedUserData));
       }
     } catch (e) {
-      debugPrint('Error de sonar obteniendo identidad: $e');
+      debugPrint('Error obteniendo identidad: $e');
     }
   }
 
-  // --- DESCARGAR EL HILO DE CHAT ---
   Future<void> _obtenerComentarios() async {
     final url = Uri.parse(
       'http://enfoca.alwaysdata.net/api/fotografias/${widget.photo.id}/comentarios',
@@ -138,16 +112,14 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<dynamic> comentariosList =
-            data['data']; // El array puro "[]"
+        final List<dynamic> comentariosList = data['data'];
         if (!mounted) return;
 
-        // Conversión Mágica: De Array sucio a Lista de Objetos Dart (POJO) orientada a objetos.
         setState(() {
           _comentarios = comentariosList
               .map((json) => Comentario.fromJson(json))
               .toList();
-          _isLoading = false; // Levantamos el telón azul
+          _isLoading = false;
         });
       } else {
         // Silencio diplomático
@@ -166,11 +138,10 @@ class _PhotoScreenState extends State<PhotoScreen> {
     }
   }
 
-  // --- DISPARAR NUEVO MENSAJE (HTTP POST) ---
+  // 3. ENVIAR UN NUEVO COMENTARIO
   Future<void> _enviarComentario() async {
     final enteredComment = _commentController.text;
 
-    // Filtro Anti-Spam (Evita enviar cajas vacías a la base de datos)
     if (enteredComment.isEmpty) return;
 
     final url = Uri.parse(
@@ -199,19 +170,13 @@ class _PhotoScreenState extends State<PhotoScreen> {
         }), // Serialización inversa (De Texto a JSON)
       );
 
-      // Si Laravel dio luz verde (201 Created o 200 OK)
       if (response.statusCode == 201 || response.statusCode == 200) {
-        _commentController
-            .clear(); // Limpiamos la cajetilla del texto como el WhatsApp
+        _commentController.clear();
         if (!mounted) return;
 
-        // Recargamos el hilo entero para que la nueva burbujita aparezca abajo (Sensación de directo)
         await _obtenerComentarios();
         if (!mounted) return;
 
-        // MAGIA NEGRA FLUÍDA: Le chivamos al Provider general (PhotoService)
-        // que ha sumado un comentario, así el "globo" de fuera en el feed principal
-        // subirá su contador (Ej: De 10 a 11) SIN RECARGAR LA PÁGINA ANTERIOR.
         Provider.of<PhotoService>(
           context,
           listen: false,
@@ -232,7 +197,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
     }
   }
 
-  // --- FUEGO AMIGO: ELIMINAR PROPIO COMENTARIO (HTTP DELETE) ---
+  // 4. ELIMINAR COMENTARIO
   Future<void> _eliminarComentario(int commentId) async {
     final url = Uri.parse(
       'http://enfoca.alwaysdata.net/api/comentarios/$commentId',
@@ -256,24 +221,20 @@ class _PhotoScreenState extends State<PhotoScreen> {
         if (!mounted) return;
 
         setState(() {
-          // Destruimos el widget local en la memoria (Visual instantáneo sin recargar nada de internet)
           _comentarios.removeWhere((c) => c.id == commentId);
         });
 
-        // Matemáticas: ¿Quedó algún otro comentario de este usuario?
-        // Sirve para apagar el "brillo azul" del icono de comentarios general en el Muro si ya no hay rastro tuyo.
         final bool userStillHasComments = _comentarios.any(
           (c) => c.userId == _currentUserId,
         );
 
-        // Actualizar el contador global en el servicio restando "-1" y avisando del brillo azul.
         Provider.of<PhotoService>(
           context,
           listen: false,
         ).notificarComentarioEliminado(widget.photo.id, userStillHasComments);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tu voz ha sido purgada.')),
+          const SnackBar(content: Text('Tu comentario ha sido eliminado.')),
         );
       } else {
         if (!mounted) return;
@@ -286,14 +247,12 @@ class _PhotoScreenState extends State<PhotoScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error de red inescrutable al eliminar.')),
+        const SnackBar(
+          content: Text('Error de red al eliminar el comentario.'),
+        ),
       );
     }
   }
-
-  // ==========================================
-  // WIDGETS EMERGENTES: EL TRIBUNAL DE REPORTES
-  // ==========================================
 
   void _mostrarDialogoReporte() {
     String motivoSeleccionado = '';
@@ -302,43 +261,40 @@ class _PhotoScreenState extends State<PhotoScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Denuncia Formal'),
+        title: const Text('Denunciar Foto'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Enuncia los crímenes visuales de esta captura. Un Gran Administrador evaluará el caso.',
+              'Indica el motivo por el cual procedes a denunciar esta foto.',
             ),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Motivo Causal',
+                labelText: 'Motivo',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
               onChanged: (val) {
-                motivoSeleccionado = val; // Actualiza el string ciego
+                motivoSeleccionado = val;
               },
             ),
           ],
         ),
         actions: [
-          // Botón Pánico (Salida)
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Indultar'),
+            child: const Text('Cancelar'),
           ),
-          // Botón Ejecutor
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              if (motivoSeleccionado.trim().isEmpty) return; // Validación vacía
+              if (motivoSeleccionado.trim().isEmpty) return;
 
-              Navigator.of(ctx).pop(); // Escondemos el menú primero.
+              Navigator.of(ctx).pop();
               if (!mounted) return;
 
               try {
-                // Inquisición en proceso a PHP.
                 await Provider.of<PhotoService>(
                   context,
                   listen: false,
@@ -347,18 +303,18 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Burocracia tramitada. Notarios en camino.'),
+                    content: Text('Reporte enviado correctamente.'),
                   ),
                 );
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Fallo en el servidor judicial: $e')),
+                  SnackBar(content: Text('Error al procesar el reporte: $e')),
                 );
               }
             },
             child: const Text(
-              'Sentenciar',
+              'Reportar',
               style: TextStyle(color: Colors.white),
             ),
           ),
@@ -373,10 +329,6 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Truco de reactividad en cadena.
-    // Aunque nos llega 'widget.photo' por el portal estático, nosotros preguntamos
-    // en tiempo real al Banco de RAM (Provider) si existe una "versión más nueva" de ella,
-    // (Ej. Porque el usuario le acaba de dar "Me gusta"). Si la hay, la pintamos en lugar de la foto vieja.
     final photoService = Provider.of<PhotoService>(context);
     final currentPhoto =
         photoService.obtenerFotoPorId(widget.photo.id) ?? widget.photo;
@@ -387,59 +339,41 @@ class _PhotoScreenState extends State<PhotoScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.report_problem),
-            tooltip: 'Censurar Documento',
+            tooltip: 'Reportar foto',
             onPressed: _mostrarDialogoReporte,
           ),
         ],
       ),
-      // SingleChildScrollView engloba la Foto GIGANTE y la lista de Comentarios LARGA
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ==========================================
-            // LA OBRA PRINCIPAL (MÓDULO COMPARTIDO)
-            // ==========================================
-            // Pasamos "currentPhoto" (La actualizada) al Widget que la diseña.
-            // "fueraFotografia: false" significa "No somos la tarjeta pequeña del muro, somos la tarjeta XXL HD".
             PhotoItem(photo: currentPhoto, fueraFotografia: false),
 
-            // ==========================================
-            // SECCIÓN COLUMNA VERTEBRAL DEL CHAT
-            // ==========================================
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                // Alineamos los textos a la izquierda (Start)
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  // "Header" de los comentarios
                   const Text(
-                    "Ágora Pública",
+                    "Comentarios",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-
-                  // ==========================================
-                  // ZONA DEL TECLADO INPUT CIBERNÉTICO
-                  // ==========================================
                   Row(
                     children: [
-                      // La caja de escritura, que crece en FlexRatio "Expanded"
                       Expanded(
                         child: TextField(
                           controller: _commentController,
                           decoration: const InputDecoration(
-                            labelText:
-                                'Transmite tus pulsos electromagnéticos...',
+                            labelText: 'Añade un comentario...',
                             border: OutlineInputBorder(),
                           ),
                         ),
                       ),
-                      // El Gatillo Inyector de Mensajes
                       IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: _enviarComentario, // Enviar al Servidor
+                        onPressed: _enviarComentario,
                         color: Theme.of(context).primaryColor,
                       ),
                     ],
@@ -447,31 +381,23 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
                   const SizedBox(height: 20),
 
-                  // ==========================================
-                  // PARRILLA SOCIAL DE BURBUJAS DE COMENTARIOS
-                  // ==========================================
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _comentarios.isEmpty
                       ? const Text(
-                          "Esta publicación es un páramo estepario de soledad. Inaugúrala.",
+                          "Nadie ha comentado todavía.",
                           style: TextStyle(fontStyle: FontStyle.italic),
                         )
-                      // Bucle constructor. No hace Scroll (shrinkWrap, NeverScrollable)
-                      // porque esto ya hace Scroll dentro del "SingleChildScrollView" general superior.
                       : ListView.builder(
                           shrinkWrap: true,
-                          physics:
-                              const NeverScrollableScrollPhysics(), // Físicas anuladas
+                          physics: const NeverScrollableScrollPhysics(),
                           itemCount: _comentarios.length,
                           itemBuilder: (ctx, index) {
                             return ComentarioItem(
                               comentario: _comentarios[index],
-                              idUsuarioActual:
-                                  _currentUserId, // Delegamos el ID para decidir si se le habilita la papelera al lado
-                              alBorrar: () => _eliminarComentario(
-                                _comentarios[index].id,
-                              ), // Puntero a función (No se ejecuta, se DELEGA el borrado).
+                              idUsuarioActual: _currentUserId,
+                              alBorrar: () =>
+                                  _eliminarComentario(_comentarios[index].id),
                             );
                           },
                         ),

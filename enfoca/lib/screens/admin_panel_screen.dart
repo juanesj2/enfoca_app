@@ -3,10 +3,7 @@ import 'admin/users_control_screen.dart';
 import 'admin/photos_control_screen.dart';
 import 'admin/reports_control_screen.dart';
 
-// ==========================================
-// PANTALLA DE PANEL DE ADMINISTRACIÓN
-// ==========================================
-
+// Pantalla del panel de administración
 class AdminPanelScreen extends StatelessWidget {
   const AdminPanelScreen({super.key});
 
@@ -18,15 +15,12 @@ class AdminPanelScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // ==========================================
-            // TARJETA DE CONTROL DE USUARIOS
-            // ==========================================
             _AdminCard(
               icon: Icons.group,
               title: 'Control de Usuarios',
               description:
-                  'Gestiona todos los usuarios de la plataforma. Visualiza, edita o elimina usuarios.',
-              buttonText: 'IR AL CONTROL DE USUARIOS',
+                  'Gestiona todos los usuarios. Visualiza, edita o elimínalos.',
+              buttonText: 'IR A USUARIOS',
               buttonColor: Colors.blueAccent,
               iconColor: Colors.blueAccent,
               onPressed: () {
@@ -40,17 +34,13 @@ class AdminPanelScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // ==========================================
-            // TARJETA DE CONTROL DE FOTOGRAFÍAS
-            // ==========================================
             _AdminCard(
               icon: Icons.camera_alt,
               title: 'Control de Fotografías',
               description:
-                  'Gestiona todas las fotografías subidas. Puedes ver, editar o eliminar fotos.',
-              buttonText: 'IR AL CONTROL DE FOTOGRAFÍAS',
-              buttonColor:
-                  Colors.amber, // Color amarillo/ámbar como en la imagen
+                  'Gestiona las fotografías subidas. Ve, edita o elimina fotos.',
+              buttonText: 'IR A FOTOGRAFÍAS',
+              buttonColor: Colors.amber,
               iconColor: Colors.amber,
               onPressed: () {
                 Navigator.push(
@@ -63,16 +53,12 @@ class AdminPanelScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // ==========================================
-            // TARJETA DE CONTROL DE REPORTES
-            // ==========================================
             _AdminCard(
               icon: Icons.flag_rounded,
               title: 'Control de Reportes',
-              description:
-                  'Revisa los reportes de contenido inapropiado o problemas con la plataforma.',
-              buttonText: 'IR AL CONTROL DE REPORTES', // Corregido texto botón
-              buttonColor: const Color.fromARGB(255, 255, 0, 0), // Rojo
+              description: 'Revisar los reportes de contenido.',
+              buttonText: 'IR A REPORTES',
+              buttonColor: const Color.fromARGB(255, 255, 0, 0),
               iconColor: const Color.fromARGB(255, 255, 7, 7),
               onPressed: () {
                 Navigator.push(
@@ -90,9 +76,6 @@ class AdminPanelScreen extends StatelessWidget {
   }
 }
 
-// ==========================================
-// WIDGET AUXILIAR: TARJETA DE ADMINISTRACIÓN
-// ==========================================
 class _AdminCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -121,10 +104,8 @@ class _AdminCard extends StatelessWidget {
         padding: const EdgeInsets.all(30.0),
         child: Column(
           children: [
-            // Icono
             Icon(icon, size: 60, color: iconColor),
             const SizedBox(height: 15),
-            // Título
             Text(
               title,
               style: const TextStyle(
@@ -135,14 +116,12 @@ class _AdminCard extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            // Descripción
             Text(
               description,
               style: const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 25),
-            // Botón
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

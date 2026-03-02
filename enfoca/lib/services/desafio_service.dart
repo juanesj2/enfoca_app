@@ -4,44 +4,18 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/desafio.dart';
 
-// ==========================================
-// SERVICIO DE RED: GESTOR DE DESAFÍOS (LOGROS)
-// ==========================================
-// Esta clase se encarga EXCLUSIVAMENTE de hablar con el servidor de Laravel
-// para descargar los logros (Todos o los míos).
-//
-// Al usar 'with ChangeNotifier', convertimos esta clase en un "Proveedor de Estado Global" (Provider).
-// Significa que si descargamos logros nuevos, podemos gritar `notifyListeners()`
-// y todas las pantallas que estén dibujando logros se actualizarán automáticamente al unísono.
+// Servicio de Desafíos
 
 class DesafioService with ChangeNotifier {
-  // ==========================================
-  // CONFIGURACIÓN DE RED
-  // ==========================================
   // Ruta base de nuestra API en Internet (El servidor remoto donde alojamos Laravel)
   final String _baseUrl = 'http://enfoca.alwaysdata.net/api';
 
-  // ==========================================
-  // ESTADO INTERNO (Datos Privados)
-  // ==========================================
-  // Usamos el guion bajo '_' para que estas listas sean privadas (Encapsulamiento).
-  // Solo este servicio puede modificarlas directamente.
   List<Desafio> _todosLosDesafios = [];
   List<Desafio> _misDesafios = [];
 
-  // ==========================================
-  // GETTERS (Exposición Segura de Datos)
-  // ==========================================
-  // Usamos el operador spread `[...]` para devolver un "Clon" de la lista.
-  // Así evitamos que un widget tramposo modifique nuestra lista _global_ directamente por error.
   List<Desafio> get todosLosDesafios => [..._todosLosDesafios];
   List<Desafio> get misDesafios => [..._misDesafios];
 
-  // ==========================================
-  // AUTENTICACIÓN: OBTENER TOKEN JWT
-  // ==========================================
-  // Lee el disco duro del móvil para sacar la clave secreta de seguridad (Token)
-  // que nos dio Laravel al hacer Login. Indispensable para que el servidor confíe en nosotros.
   Future<String?> _obtenerToken() async {
     final prefs =
         await SharedPreferences.getInstance(); // Acceso a la memoria del teléfono
@@ -58,10 +32,6 @@ class DesafioService with ChangeNotifier {
     return extractedUserData['token'];
   }
 
-  // ==========================================
-  // PROCESO DE CARGA MASIVA RÁPIDA
-  // ==========================================
-  // Llama secuencialmente a las dos funciones de descarga. Útil al arrancar la App.
   Future<void> cargarTodo() async {
     try {
       await obtenerTodos();
@@ -81,9 +51,6 @@ class DesafioService with ChangeNotifier {
     }
   }
 
-  // ==========================================
-  // PETICIÓN GET: TODOS LOS DESAFÍOS
-  // ==========================================
   Future<void> obtenerTodos() async {
     final token = await _obtenerToken();
     if (token == null)
@@ -133,10 +100,6 @@ class DesafioService with ChangeNotifier {
     }
   }
 
-  // ==========================================
-  // PETICIÓN GET: MIS DESAFÍOS COMPLETADOS
-  // ==========================================
-  // (La arquitectura y lógica de red es idéntica a la función anterior, pero cambia la URL objetivo y la variable).
   Future<void> obtenerMisDesafios() async {
     final token = await _obtenerToken();
     if (token == null) return;

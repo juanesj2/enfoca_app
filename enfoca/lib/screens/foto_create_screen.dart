@@ -8,20 +8,13 @@ import 'package:latlong2/latlong.dart';
 import '../services/photo_service.dart';
 import 'map_selection_screen.dart';
 
-// ==========================================
-// PANTALLA DE ALTA DE PUBLICACIÓN (CREAR FOTO)
-// ==========================================
-// Este Widget es un formulario mastodóntico (StatefulWidget) que recopila
-// tanto una Imagen Binaria (Archivo físico) como Textos (Metadatos).
-// Todo esto debe empaquetarse junto usando el formato 'multipart/form-data' de HTTP.
+// Pantalla para crear una nueva publicación con foto y detalles.
 
 class FotoCreateScreen extends StatefulWidget {
   // Alias de enrutamiento interno
   static const routeName = '/foto-create';
 
-  // Callback o Trigger de Inyección.
-  // Cuando terminamos con éxito, el "Padre" (HomeScreen) ejecutará esta misteriosa
-  // función anónima ordenando al BottomNavigationBar que regrese al Tab0 (El Feed).
+  // Callback ejecutado al subir la foto con éxito.
   final VoidCallback? onPhotoUploaded;
 
   const FotoCreateScreen({super.key, this.onPhotoUploaded});
@@ -31,18 +24,17 @@ class FotoCreateScreen extends StatefulWidget {
 }
 
 class _FotoCreateScreenState extends State<FotoCreateScreen> {
-  // Llave Maestra del Formulario. Con ella le decimos a Flutter:
-  // "Revisa si todas las validaciones de los TextFormField están en verde".
+  // Clave del formulario para validación.
   final _formKey = GlobalKey<FormState>();
 
   // ==========================================
   // ESTADO INTERNO (VARIABLES DE RECOLECCIÓN)
   // ==========================================
 
-  // --- 1. Metadatos de Negocio ---
+  // --- Metadatos de la foto ---
   String _titulo = '';
   String _descripcion = '';
-  // --- 2. Metadatos Fotográficos Opcionales ---
+  // --- Metadatos técnicos (Opcionales) ---
   int? _iso;
   String? _velocidadObturacion;
   double? _apertura;
@@ -50,101 +42,90 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
   double? _latitud;
   double? _longitud;
 
-  // --- 4. El Archivo Físico Binario ---
+  // --- Archivo de imagen ---
   File? _pickedImage;
-  // Instancia del Recolector de Imágenes (Nativo de Android/iOS)
   final ImagePicker _picker = ImagePicker();
 
-  // --- 5. Banderas (Flags) de UX ---
-  bool _isLoading = false; // Rulita de subida al servidor
-  bool _isGettingLocation =
-      false; // Rulita pequeña para el GPS buscando satélites
+  // --- Estado de la interfaz ---
+  bool _isLoading = false;
+  bool _isGettingLocation = false;
 
-  // Controladores Mutables: A diferencia del 'onSaved', los Controladores nos permiten
-  // INYECTAR texto programáticamente en las cajas (Ej. Tras capturar GPS automáticamente).
+  // Controladores de texto para las coordenadas.
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
 
   // ==========================================
-  // CICLO DE VIDA (DESTRUCCIÓN)
+  // CICLO DE VIDA
   // ==========================================
 
   @override
   void dispose() {
-    // Al salir de esta pantalla, matamos los controladores de memoria para evitar goteras (Memory Leaks).
     _latController.dispose();
     _lngController.dispose();
     super.dispose();
   }
 
   // ==========================================
-  // LÓGICA CORE: OBTENCIÓN DE RECURSOS DEL MÓVIL
+  // LÓGICA DE NEGOCIO
   // ==========================================
 
-  // 1. INVOCAR SISTEMA DE IMÁGENES
+  // 1. SELECCIONAR IMAGEN
   Future<void> _seleccionarImagen(ImageSource source) async {
     try {
-      // Abre subrutina nativa del SO. Detiene la app hasta que el usuario elija o cancele.
       final XFile? pickedFile = await _picker.pickImage(
-        source: source, // ¿ImageSource.camera o ImageSource.gallery?
-        maxWidth:
-            1920, // Autocompresión en frontend para no arruinar el ancho de banda
+        source: source,
+        maxWidth: 1920,
         maxHeight: 1080,
         imageQuality: 85,
       );
 
       if (pickedFile != null) {
         setState(() {
-          // Casteamos de XFile (Memoria volátil de la librería) a un File físico nativo puro de Dart
           _pickedImage = File(pickedFile.path);
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error del kernel al capturar lente: $e')),
+        SnackBar(content: Text('Error al capturar la imagen: $e')),
       );
     }
   }
 
-  // 2. INVOCAR HARDWARE GPS
+  // 2. OBTENER UBICACIÓN ACTUAL
   Future<void> _obtenerUbicacionActual() async {
     setState(() {
-      _isGettingLocation = true; // Activar ruletita GPS
+      _isGettingLocation = true;
     });
 
     try {
-      // 2.1 Fase Legal: Comprobar Permisos de Android/iOS con el usuario
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        // Interrumpimos pidiendo permiso con el Popup del Sistema Operativo
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permiso interceptado o denegado')),
+            const SnackBar(content: Text('Permiso de ubicación denegado')),
           );
           setState(() => _isGettingLocation = false);
-          return; // Abortamos
+          return;
         }
       }
 
-      // Si el usuario nos mandó "Nunca" en los permisos, no insistimos.
       if (permission == LocationPermission.deniedForever) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No podemos triangular. Ve a Ajustes del Sistema.'),
+            content: Text(
+              'Activa los permisos de ubicación en los ajustes del sistema.',
+            ),
           ),
         );
         setState(() => _isGettingLocation = false);
         return;
       }
 
-      // 2.2 Fase Física: Solicitar triangulación
-      // DesiredAccuracy.high fuerza el chip GPS real (consume más batería) vs las antenas móviles.
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // ¡Hemos encontrado el objetivo! Sobrescribimos interfaz.
       setState(() {
         _latitud = position.latitude;
         _longitud = position.longitude;
@@ -154,18 +135,16 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Satélites inalcanzables: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error al obtener ubicación: $e')));
     } finally {
       setState(() {
-        _isGettingLocation = false; // Apagar ruletita GPS
+        _isGettingLocation = false;
       });
     }
   }
 
-  // 3. SELECCIÓN VISUAL MEDIANTE MAPA FLUTTER_MAP
+  // 3. SELECCIONAR UBICACIÓN EN MAPA
   Future<void> _seleccionarUbicacionEnMapa() async {
-    // Abrimos una "Mini-aplicación" paralela enviando un cohete (push)
-    // El 'await' congela esta pantalla hasta que el usuario decida volver con un botín estelar (Un objeto LatLng).
     final result = await Navigator.of(context).push<LatLng>(
       MaterialPageRoute(
         builder: (ctx) =>
@@ -173,7 +152,6 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
       ),
     );
 
-    // ¿Cayó botín (Pincho clavado)? Rellenamos formulario
     if (result != null) {
       setState(() {
         _latitud = result.latitude;
@@ -184,34 +162,28 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
     }
   }
 
-  // 4. PREPARACIÓN Y LANZAMIENTO DEL MISIL (HTTP POST)
+  // 4. ENVIAR FORMULARIO
   Future<void> _enviarFormulario() async {
-    // ¿Todas las casillas requeridas pasan la validación regex (Si la hubiera) o están llenas?
-    // Si currentState devuelve false, la pantalla se llena de textos rojos y parpadea. Abortamos envio.
     if (!_formKey.currentState!.validate()) return;
 
-    // Validación artesanal: Un Post sin imagen de Post es inútil
     if (_pickedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Inserta película fotográfica visual, por favor'),
+          content: Text('Por favor, selecciona una imagen para la publicación'),
         ),
       );
       return;
     }
 
-    // Ordenamos a los TextFormFields que vacíen su 'onSaved' inyectándolo a nuestras variables top-level de esta clase.
     _formKey.currentState!.save();
 
     setState(() {
-      _isLoading = true; // Activar el Spinnersote gigante
+      _isLoading = true;
     });
 
     try {
-      // Disparo definitivo contra el Backend. Multipart HTTP Request.
-      // Aquí está el truco: listen: false para que no explote la pila de memoria por reconstrucciones sutiles a medias.
       await Provider.of<PhotoService>(context, listen: false).crearFoto(
-        _pickedImage!, // "!" le jura por dios a Dart que NUNCA será nulo, ya que arriba lo hemos protegido en el if()-return
+        _pickedImage!,
         _titulo,
         _descripcion,
         latitud: _latitud,
@@ -221,29 +193,26 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
         apertura: _apertura,
       );
 
-      // Si PHP nos devolvió OK HTTP 201:
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('¡Procesado exitoso! 📸')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('¡Publicación creada con éxito!')),
+      );
 
-      // Apretamos el botón inalámbrico secreto para chivarle a HomeScreen
-      // que cambie a la pestaña 0 (Muro), así vemos triunfales nuestra foto arriba de todas.
       if (widget.onPhotoUploaded != null) {
         widget.onPhotoUploaded!();
       }
     } catch (error) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Fracaso Operativo: $error')));
+      ).showSnackBar(SnackBar(content: Text('Error al publicar: $error')));
     } finally {
       setState(() {
-        _isLoading = false; // Apagamos el loader
+        _isLoading = false;
       });
     }
   }
 
   // ==========================================
-  // RENDERIZADO VISUAL DEL LIENZO (BUILD)
+  // RENDERIZADO VISUAL
   // ==========================================
 
   @override
@@ -252,48 +221,35 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
       appBar: AppBar(title: const Text('Nueva Publicación')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          // Formulario gigantesco protegigo por ScrollViewer para teclados en pantalla
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Form(
-                key: _formKey, // Firma de contrato para poder hacer .validate()
+                key: _formKey,
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch, // Abarcar 100% de ancho
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ==========================================
-                    // SECCIÓN 1: SELECTOR GRÁFICO (RECEPTÁCULO)
-                    // ==========================================
-                    // GestureDetector = Hacemos que CUALQUIER WIDGET se vuelva "Clicable".
+                    // --- SELECTOR DE IMAGEN ---
                     GestureDetector(
                       onTap: () {
-                        // ModalBottomSheet es un Popup que brota desde abajo del móvil hacia arriba.
                         showModalBottomSheet(
                           context: context,
                           builder: (ctx) => Column(
-                            mainAxisSize: MainAxisSize
-                                .min, // Solo ocupa de alto lo que necesiten sus hijos
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               ListTile(
                                 leading: const Icon(Icons.camera_alt),
                                 title: const Text('Tomar Foto Directa'),
                                 onTap: () {
-                                  Navigator.pop(ctx); // Cierra el Popup primero
-                                  _seleccionarImagen(
-                                    ImageSource.camera,
-                                  ); // Lanza la cámara
+                                  Navigator.pop(ctx);
+                                  _seleccionarImagen(ImageSource.camera);
                                 },
                               ),
                               ListTile(
                                 leading: const Icon(Icons.photo_library),
-                                title: const Text(
-                                  'Explorar Galería Carchipiélago',
-                                ),
+                                title: const Text('Explorar Galería'),
                                 onTap: () {
-                                  Navigator.pop(ctx); // Cierra el Popup primero
-                                  _seleccionarImagen(
-                                    ImageSource.gallery,
-                                  ); // Lanza carrete nativo
+                                  Navigator.pop(ctx);
+                                  _seleccionarImagen(ImageSource.gallery);
                                 },
                               ),
                             ],
@@ -301,22 +257,17 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                         );
                       },
                       child: Container(
-                        height:
-                            200, // Fijado para que quede cuadrado estilo Instagram
+                        height: 200,
                         decoration: BoxDecoration(
                           color: Colors.grey[200],
                           border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ), // Esquinas SUV
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
-                        // ¿Tengo una foto ya? La planto (Image.file). ¿No tengo? Pongo texto gris "Toca para añadir".
                         child: _pickedImage != null
                             ? Image.file(
                                 _pickedImage!,
-                                fit: BoxFit
-                                    .cover, // Recorta equitativamente por los bordes si no cabe la rel. aspecto
+                                fit: BoxFit.cover,
                                 width: double.infinity,
                                 height: double.infinity,
                               )
@@ -330,7 +281,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    'Toca para infundir rollo fílmico',
+                                    'Toca para añadir una imagen',
                                     style: TextStyle(color: Colors.black54),
                                   ),
                                 ],
@@ -339,32 +290,25 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ==========================================
-                    // SECCIÓN 2: LITERATURA
-                    // ==========================================
+                    // --- DATOS BÁSICOS ---
                     TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Titular de la Captura',
-                      ),
-                      // Al darle a Enter en el móvil salta al siguiente campo
+                      decoration: const InputDecoration(labelText: 'Título'),
                       textInputAction: TextInputAction.next,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          // Texto rojo cabreado de Flutter (UX Errors)
-                          return 'El protocolo exige una designación formal.';
+                          return 'Introduce un título para la foto.';
                         }
-                        return null; // Todo "Ok"
+                        return null;
                       },
                       onSaved: (value) {
-                        _titulo =
-                            value!; // Se inyecta al final en el submit final colectivo
+                        _titulo = value!;
                       },
                     ),
                     TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'Boceto Descriptivo (Opcional)',
+                        labelText: 'Descripción (Opcional)',
                       ),
-                      maxLines: 3, // Caja grande multilínea
+                      maxLines: 3,
                       keyboardType: TextInputType.multiline,
                       onSaved: (value) {
                         _descripcion = value ?? '';
@@ -372,11 +316,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ==========================================
-                    // SECCIÓN 3: TOPOGRAFÍA Y CARTOGRAFÍA (GPS)
-                    // ==========================================
+                    // --- UBICACIÓN ---
                     const Text(
-                      'Ubicación Planetaria',
+                      'Ubicación',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -390,12 +332,11 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                         Expanded(
                           child: Text(
                             _latitud != null
-                                ? 'Fijado: ${_latitud!.toStringAsFixed(4)}, ${_longitud!.toStringAsFixed(4)}'
-                                : 'Coordenadas Perdidas',
+                                ? '${_latitud!.toStringAsFixed(4)}, ${_longitud!.toStringAsFixed(4)}'
+                                : 'Sin coordenadas',
                             style: const TextStyle(color: Colors.grey),
                           ),
                         ),
-                        // Si está buscando la posición vía satélite, spinner.
                         if (_isGettingLocation)
                           const SizedBox(
                             width: 20,
@@ -403,10 +344,8 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         else
-                          // Botones de Comando (2 Opciones de Fichaje)
                           Column(
-                            mainAxisSize:
-                                MainAxisSize.min, // Juntitos verticalmente
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               TextButton.icon(
                                 icon: const Icon(Icons.my_location),
@@ -424,11 +363,9 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     const Divider(),
 
-                    // ==========================================
-                    // SECCIÓN 4: PARÁMETROS FOTÓNICOS (METADATOS EXIF)
-                    // ==========================================
+                    // --- DATOS TÉCNICOS ---
                     const Text(
-                      'Datos Biométricos de Lente',
+                      'Datos fotográficos',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -443,13 +380,10 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                             decoration: const InputDecoration(
                               labelText: 'ISO Sensitivy',
                             ),
-                            // Fuerza abrir SOLO números (Sin letras) en móvil
                             keyboardType: TextInputType.number,
                             onSaved: (value) {
                               if (value != null && value.isNotEmpty) {
-                                _iso = int.tryParse(
-                                  value,
-                                ); // Convierte "100" string a 100 entero de CPU
+                                _iso = int.tryParse(value);
                               }
                             },
                           ),
@@ -461,16 +395,12 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                               labelText: 'Diafragma (f/)',
                             ),
                             keyboardType: const TextInputType.numberWithOptions(
-                              decimal:
-                                  true, // Deja pulsar comas o puntos (Relevante para f/ 1.8)
+                              decimal: true,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Obligtorio en Laravel';
+                                return 'Obligatorio';
                               }
-                              // --- SANITIZACIÓN ROBUSTA (PARSER) ---
-                              // El usuario humano es torpe, escribirá "f1,8" o " 1.8 ", o "f/1.8"
-                              // Destruimos la basura visual e igualamos comas europeas a puntos universales (US)
                               final sanitized = value
                                   .toLowerCase()
                                   .replaceAll('f', '')
@@ -479,7 +409,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                   .replaceAll(',', '.');
 
                               if (double.tryParse(sanitized) == null) {
-                                return 'No es matemático (Ej: 2.8)';
+                                return 'Formato inválido (ej: 2.8)';
                               }
                               return null;
                             },
@@ -491,9 +421,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                                     .replaceAll('/', '')
                                     .replaceAll(' ', '')
                                     .replaceAll(',', '.');
-                                _apertura = double.tryParse(
-                                  sanitized,
-                                ); // Convierte a C++ Double (00.00)
+                                _apertura = double.tryParse(sanitized);
                               }
                             },
                           ),
@@ -502,20 +430,14 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                     ),
                     TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'Velocidad de Obturación (Ráfaga /100)',
+                        labelText: 'Velocidad de Obturación',
                       ),
                       onSaved: (value) {
-                        // Lo guardamos como string puro, si pone 1/100 se lo come entero el SQL como VARCHAR.
                         _velocidadObturacion = value;
                       },
                     ),
 
-                    const SizedBox(
-                      height: 30,
-                    ), // Margen inferior antes del disparo final
-                    // ==========================================
-                    // EL INTERRUPTOR FINAL: LANZAR A LARAVEL
-                    // ==========================================
+                    const SizedBox(height: 30),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -524,7 +446,7 @@ class _FotoCreateScreenState extends State<FotoCreateScreen> {
                       ),
                       onPressed: _enviarFormulario,
                       child: const Text(
-                        'REVELAR Y PUBLICAR 🚀',
+                        'PUBLICAR FOTO',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
