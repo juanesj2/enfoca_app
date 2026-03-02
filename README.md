@@ -54,5 +54,5 @@ Pasos básicos para levantar el cliente en un entorno de desarrollo:
 ---
 
 <div align="center">
-  <i>Desarrollado con pasión para el TFG de DAM.</i>
+    <i>Desarrollado con MUCHO amor <a href="https://github.com/juanesj2">Juanes.<a> </i>
 </div>
